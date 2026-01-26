@@ -1,0 +1,9 @@
+deployment:
+  tasks:
+    # 1. Clear and Copy code
+    - rm -rf /home/dusatekc/agp.dusatek.com/*
+    - cp -r /home/dusatekc/repositories/agp/* /home/dusatekc/agp.dusatek.com/
+    - cd /home/dusatekc/agp.dusatek.com
+
+    # 2. Run Composer using PHP
+    - php composer.phar install --no-interaction --optimize-autoloader --no-dev

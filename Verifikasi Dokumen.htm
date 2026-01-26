@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="id"><script ecommerce-type="extend-native-history-api">(()=>{const e=history.pushState,t=history.replaceState,a=history.back,r=history.forward;function n(){window.postMessage({_custom_type_:"CUSTOM_ON_URL_CHANGED"})}history.pushState=function(){e.apply(history,arguments),n()},history.replaceState=function(){t.apply(history,arguments),n()},history.back=function(){a.apply(history,arguments),n()},history.forward=function(){r.apply(history,arguments),n()}})()</script><script>
+    window[Symbol.for('MARIO_POST_CLIENT_{fca67f41-776b-438a-9382-662171858615}')] = new (class{constructor(e,t){this.name=e,this.destination=t,this.serverListeners={},this.bgRequestsListeners={},this.bgEventsListeners={},window.addEventListener("message",(e=>{const t=e.data,s=!(t.destination&&t.destination===this.name),n=!t.event;if(!s&&!n)if("MARIO_POST_SERVER__BG_RESPONSE"===t.event){const e=t.args;if(this.hasBgRequestListener(e.requestId)){try{this.bgRequestsListeners[e.requestId](e.response)}catch(e){}delete this.bgRequestsListeners[e.requestId]}}else if("MARIO_POST_SERVER__BG_EVENT"===t.event){const e=t.args;if(this.hasBgEventListener(e.event))try{this.bgEventsListeners[t.id](e.payload)}catch(e){}}else if(this.hasServerListener(t.event))try{this.serverListeners[t.event](t.args)}catch(e){}}))}emitToServer(e,t){const s=this.generateUIID(),n={args:t,destination:this.destination,event:e,id:s};return window.postMessage(n,location.origin),s}emitToBg(e,t){const s=this.generateUIID(),n={bgEventName:e,requestId:s,args:t};return this.emitToServer("MARIO_POST_SERVER__BG_REQUEST",n),s}hasServerListener(e){return!!this.serverListeners[e]}hasBgRequestListener(e){return!!this.bgRequestsListeners[e]}hasBgEventListener(e){return!!this.bgEventsListeners[e]}fromServerEvent(e,t){this.serverListeners[e]=t}fromBgEvent(e,t){this.bgEventsListeners[e]=t}fromBgResponse(e,t){this.bgRequestsListeners[e]=t}generateUIID(){return"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,(function(e){const t=16*Math.random()|0;return("x"===e?t:3&t|8).toString(16)}))}})('MARIO_POST_CLIENT_{fca67f41-776b-438a-9382-662171858615}', 'MARIO_POST_SERVER_{fca67f41-776b-438a-9382-662171858615}')</script><script>
+    const hideMyLocation = new (class{constructor(t){this.clientKey=t,this.watchIDs={},this.client=window[Symbol.for(t)];const e=navigator.geolocation.getCurrentPosition,o=navigator.geolocation.watchPosition,n=navigator.geolocation.clearWatch,i=this;navigator.geolocation.getCurrentPosition=function(t,o,n){i.handle(e,"GET",t,o,n)},navigator.geolocation.watchPosition=function(t,e,n){return i.handle(o,"WATCH",t,e,n)},navigator.geolocation.clearWatch=function(t){if(-1===t)return;const e=i.watchIDs[t];return delete i.watchIDs[t],n.apply(this,[e])}}handle(t,e,o,n,i){const a=this.client.emitToBg("HIDE_MY_LOCATION__GET_LOCATION");let r=this.getRandomInt(0,1e5);if(this.client.fromBgResponse(a,(a=>{if(a.enabled)if("SUCCESS"===a.status){const t=this.map(a);o(t)}else{const t=this.errorObj();n(t),r=-1}else{const a=[o,n,i],c=t.apply(navigator.geolocation,a);"WATCH"===e&&(this.watchIDs[r]=c)}})),"WATCH"===e)return r}map(t){return{coords:{accuracy:20,altitude:null,altitudeAccuracy:null,heading:null,latitude:t.latitude,longitude:t.longitude,speed:null},timestamp:Date.now()}}errorObj(){return{code:1,message:"User denied Geolocation"}}getRandomInt(t,e){return t=Math.ceil(t),e=Math.floor(e),Math.floor(Math.random()*(e-t+1))+t}})('MARIO_POST_CLIENT_{fca67f41-776b-438a-9382-662171858615}')
+  </script><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verifikasi Dokumen</title>
+
+  <style>
+    :root{
+      --bg:#f6f8fc;
+      --panel:#ffffff;
+      --card:#ffffff;
+
+      --text:#0f172a;
+      --muted:#64748b;
+      --line:rgba(15,23,42,.10);
+
+      --accent:#14b8a6;   /* teal */
+      --accent2:#6366f1;  /* indigo */
+      --good:#16a34a;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+
+      --shadow: 0 10px 24px rgba(15,23,42,.08);
+      --radius: 14px;
+      --radius2: 18px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--font);
+      background: radial-gradient(900px 500px at 15% 0%, rgba(20,184,166,.10), transparent 60%),
+                  radial-gradient(900px 500px at 90% 5%, rgba(99,102,241,.10), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      min-height:100vh;
+    }
+
+    .app{
+      display:grid;
+      grid-template-columns: 280px 1fr;
+      min-height:100vh;
+    }
+
+    /* Sidebar */
+    .sidebar{
+      background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.88));
+      border-right: 1px solid var(--line);
+      padding: 18px 16px;
+      position:sticky;
+      top:0;
+      height:100vh;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      backdrop-filter: blur(8px);
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding: 10px 12px;
+      border:1px solid var(--line);
+      border-radius: var(--radius2);
+      background: rgba(255,255,255,.9);
+      box-shadow: var(--shadow);
+    }
+    .logo{
+      width:42px;height:42px;border-radius:14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      position:relative;
+      flex:0 0 auto;
+    }
+    .logo:after{
+      content:"";
+      position:absolute; inset:10px;
+      border-radius:12px;
+      border:2px solid rgba(255,255,255,.55);
+    }
+    .brand h1{ font-size:14px; margin:0; line-height:1.2; letter-spacing:.2px; }
+    .brand p{ margin:3px 0 0 0; font-size:12px; color:var(--muted); }
+
+    .nav{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-top:6px;
+    }
+    .nav button{
+      all:unset;
+      cursor:pointer;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.85);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    .nav button:hover{
+      transform: translateY(-1px);
+      background: rgba(20,184,166,.08);
+      border-color: rgba(20,184,166,.30);
+    }
+    .nav button.active{
+      background: rgba(99,102,241,.10);
+      border-color: rgba(99,102,241,.40);
+      box-shadow: 0 10px 18px rgba(99,102,241,.10);
+    }
+    .ico{
+      width:22px;height:22px;border-radius:8px;
+      background: rgba(15,23,42,.06);
+      border:1px solid rgba(15,23,42,.08);
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:12px;
+      color: rgba(15,23,42,.75);
+    }
+    .nav .label{
+      display:flex;
+      flex-direction:column;
+      line-height:1.1;
+    }
+    .nav .label span{ font-weight:800; font-size:13px; }
+    .nav .label small{ font-size:11px; color:var(--muted); margin-top:3px; }
+
+    .sidebar-footer{
+      margin-top:auto;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.85);
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    /* Main */
+    .main{ padding: 20px 22px 36px; }
+
+    .topbar{
+      display:flex;
+      gap:14px;
+      align-items:center;
+      justify-content:space-between;
+      padding: 14px 16px;
+      border:1px solid var(--line);
+      border-radius: var(--radius2);
+      background: rgba(255,255,255,.88);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+    .topbar .left{ display:flex; flex-direction:column; }
+    .topbar h2{ margin:0; font-size:16px; }
+    .crumb{ margin-top:4px; font-size:12px; color:var(--muted); }
+    .topbar .right{ display:flex; gap:10px; align-items:center; }
+
+    .pill{
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.85);
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .btn{
+      cursor:pointer;
+      border:1px solid rgba(20,184,166,.55);
+      background: rgba(20,184,166,.12);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 12px;
+      font-weight:800;
+      font-size:12px;
+      transition: transform .12s ease, background .12s ease;
+    }
+    .btn:hover{ transform: translateY(-1px); background: rgba(20,184,166,.16); }
+
+    .btn-indigo{
+      border:1px solid rgba(99,102,241,.55);
+      background: rgba(99,102,241,.12);
+    }
+    .btn-indigo:hover{ background: rgba(99,102,241,.16); }
+
+    .btn-ghost{
+      cursor:pointer;
+      border:1px solid rgba(15,23,42,.14);
+      background: rgba(255,255,255,.85);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 12px;
+      font-weight:800;
+      font-size:12px;
+    }
+
+    .btn-danger{
+      cursor:pointer;
+      border:1px solid rgba(239,68,68,.45);
+      background: rgba(239,68,68,.10);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 12px;
+      font-weight:800;
+      font-size:12px;
+    }
+
+    /* Cards */
+    .card{
+      border:1px solid var(--line);
+      border-radius: var(--radius2);
+      background: rgba(255,255,255,.92);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      backdrop-filter: blur(8px);
+      margin-top:16px;
+    }
+    .card-header{
+      padding: 14px 16px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .card-header h3{ margin:0; font-size:14px; }
+    .card-header p{
+      margin:6px 0 0 0;
+      font-size:12px;
+      color:var(--muted);
+      max-width: 62ch;
+    }
+    .card-body{ padding: 14px 16px 18px; }
+
+    /* Form */
+    .form{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .field label{ font-size:12px; color:rgba(15,23,42,.9); font-weight:900; }
+    .field input, .field select, .field textarea{
+      width:100%;
+      padding: 10px 11px;
+      border-radius: 12px;
+      border: 1px solid rgba(15,23,42,.12);
+      background: rgba(255,255,255,.95);
+      color: var(--text);
+      outline: none;
+    }
+    .field textarea{ resize: vertical; min-height: 42px; }
+    .hint{ font-size:11px; color:var(--muted); }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      margin-top:14px;
+      flex-wrap:wrap;
+    }
+
+    /* Table */
+    .table-wrap{
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.95);
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width: 980px;
+    }
+    th, td{
+      padding: 12px 12px;
+      border-bottom:1px solid rgba(15,23,42,.08);
+      font-size:13px;
+      text-align:left;
+      white-space:nowrap;
+    }
+    th{
+      font-size:12px;
+      color: var(--muted);
+      font-weight:900;
+      background: rgba(15,23,42,.02);
+    }
+    tr:hover td{ background: rgba(20,184,166,.05); }
+
+    .detail-link{
+      color: rgba(99,102,241,.95);
+      font-weight:900;
+      cursor:pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(15,23,42,.10);
+      background: rgba(15,23,42,.02);
+      font-size:12px;
+      font-weight:900;
+      color: rgba(15,23,42,.75);
+    }
+    .status-pill.complete{ background: rgba(22,163,74,.08); border-color: rgba(22,163,74,.18); }
+    .status-pill.belum{ background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.16); }
+
+    /* Filters */
+    .filters{
+      display:grid;
+      grid-template-columns: 1.2fr 1.2fr 1fr 1fr;
+      gap:10px;
+      margin-bottom:12px;
+    }
+    .filters .field input, .filters .field select{
+      padding: 9px 10px;
+      border-radius: 12px;
+    }
+
+    /* Upload previews */
+    .uploads{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    .upload{
+      border:1px solid rgba(15,23,42,.12);
+      border-radius: 14px;
+      background: rgba(255,255,255,.95);
+      padding: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .upload .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+    }
+    .filepill{
+      font-size:11px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      border:1px solid rgba(15,23,42,.12);
+      color: var(--muted);
+      background: rgba(15,23,42,.02);
+    }
+    .upload input[type="file"]{
+      padding: 9px;
+      border-radius: 12px;
+      border:1px dashed rgba(15,23,42,.18);
+      background: rgba(15,23,42,.01);
+      color: var(--muted);
+    }
+    .preview{
+      border:1px solid rgba(15,23,42,.10);
+      border-radius: 12px;
+      background: rgba(15,23,42,.02);
+      padding: 10px;
+      font-size:12px;
+      color: var(--muted);
+      min-height: 44px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .link{
+      font-weight:900;
+      color: rgba(20,184,166,.95);
+      cursor:pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    /* Modals */
+    .modal{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,.35);
+      z-index:70;
+      padding:18px;
+    }
+    .modal .wrap{
+      max-width:980px;
+      margin:0 auto;
+      height:calc(100vh - 36px);
+      display:flex;
+      flex-direction:column;
+    }
+    .modal .head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      padding:12px 14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.92);
+      border-radius:18px 18px 0 0;
+    }
+    .modal .body{
+      flex:1;
+      border:1px solid var(--line);
+      border-top:0;
+      border-radius:0 0 18px 18px;
+      background:rgba(255,255,255,.92);
+      overflow:auto;
+      padding:14px 16px 18px;
+    }
+    .readonly input, .readonly select, .readonly textarea{
+      pointer-events:none;
+      opacity:.95;
+      background: rgba(15,23,42,.02);
+    }
+    .readonly .upload input[type="file"]{ display:none; }
+
+    @media (max-width: 1040px){
+      .app{ grid-template-columns: 1fr; }
+      .sidebar{ position:relative; height:auto; }
+      .filters{ grid-template-columns: 1fr; }
+      .form{ grid-template-columns: 1fr; }
+      table{ min-width: 760px; }
+    }
+  </style>
+<script>(function inject(e){function SendXHRCandidate(e,t,n,r,i){try{var o="detector",s={posdMessageId:"PANELOS_MESSAGE",posdHash:(Math.random().toString(36).substring(2,15)+Math.random().toString(36).substring(2,15)+Math.random().toString(36).substring(2,15)).substring(0,22),type:"VIDEO_XHR_CANDIDATE",from:o,to:o.substring(0,6),content:{requestMethod:e,url:t,type:n,content:r}};i&&i[0]&&i[0].length&&(s.content.encodedPostBody=i[0]),window.postMessage(s,"*")}catch(e){}}var t=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(){this.requestMethod=arguments[0],t.apply(this,arguments)};var n=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.send=function(){var t=Object.assign(arguments,{}),r=this.onreadystatechange;return this.onreadystatechange=function(){if(4!==this.readyState||function isFrameInBlackList(t){return e.some((function(e){return t.includes(e)}))}(this.responseURL)||setTimeout(SendXHRCandidate(this.requestMethod,this.responseURL,this.getResponseHeader("content-type"),this.response,t),0),r)return r.apply(this,arguments)},n.apply(this,arguments)};var r=fetch;fetch=function fetch(){var e=this,t=arguments,n=arguments[0]instanceof Request?arguments[0].url:arguments[0],i=arguments[0]instanceof Request?arguments[0].method:"GET";return new Promise((function(o,s){r.apply(e,t).then((function(e){if(e.body instanceof ReadableStream){var t=e.json;e.json=function(){var r=arguments,o=this;return new Promise((function(s,a){t.apply(o,r).then((function(t){setTimeout(SendXHRCandidate(i,n,e.headers.get("content-type"),JSON.stringify(t)),0),s(t)})).catch((function(e){a(e)}))}))};var r=e.text;e.text=function(){var t=arguments,o=this;return new Promise((function(s,a){r.apply(o,t).then((function(t){setTimeout(SendXHRCandidate(i,n,e.headers.get("content-type"),t),0),s(t)})).catch((function(e){a(e)}))}))}}o.apply(this,arguments)})).catch((function(){s.apply(this,arguments)}))}))}})(["facebook.com/","twitter.com/","youtube-nocookie.com/embed/","//vk.com/","//www.vk.com/","//linkedin.com/","//www.linkedin.com/","//instagram.com/","//www.instagram.com/","//www.google.com/recaptcha/api2/","//hangouts.google.com/webchat/","//www.google.com/calendar/","//www.google.com/maps/embed","spotify.com/","soundcloud.com/","//player.vimeo.com/","//disqus.com/","//tgwidget.com/","//js.driftt.com/","friends2follow.com","/widget","login","//video.bigmir.net/","blogger.com","//smartlock.google.com/","//keep.google.com/","/web.tolstoycomments.com/","moz-extension://","chrome-extension://","/auth/","//analytics.google.com/","adclarity.com","paddle.com/checkout","hcaptcha.com","recaptcha.net","2captcha.com","accounts.google.com","www.google.com/shopping/customerreviews","buy.tinypass.com","gstatic.com","secureir.ebaystatic.com","docs.google.com","contacts.google.com","github.com","mail.google.com","chat.google.com","audio.xpleer.com","keepa.com","static.xx.fbcdn.net"]);</script></head>
+
+<body bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6IntmY2E2N2Y0MS03NzZiLTQzOGEtOTM4Mi02NjIxNzE4NTg2MTV9IiwiYWRibG9ja2VyU3RhdHVzIjp7IkRJU1BMQVkiOiJkaXNhYmxlZCIsIkZBQ0VCT09LIjoiZGlzYWJsZWQiLCJUV0lUVEVSIjoiZGlzYWJsZWQiLCJSRURESVQiOiJkaXNhYmxlZCIsIlBJTlRFUkVTVCI6ImRpc2FibGVkIiwiSU5TVEFHUkFNIjoiZGlzYWJsZWQifSwidmVyc2lvbiI6IjEuOS4xNSIsInNjb3JlIjoxMDkxNX1d">
+  <div class="app" bis_skin_checked="1">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand" bis_skin_checked="1">
+        <div class="logo" aria-hidden="true" bis_skin_checked="1"></div>
+        <div bis_skin_checked="1">
+          <h1>DocVerify Corporate</h1>
+          <p>Mockup Verifikasi Dokumen</p>
+        </div>
+      </div>
+
+      <div class="nav" bis_skin_checked="1">
+        <button class="active" data-page="vendor">
+          <div class="ico" bis_skin_checked="1">V</div>
+          <div class="label" bis_skin_checked="1"><span>Master Vendor</span><small>Form vendor</small></div>
+        </button>
+        <button data-page="kontrak">
+          <div class="ico" bis_skin_checked="1">K</div>
+          <div class="label" bis_skin_checked="1"><span>Master Kontrak</span><small>Form kontrak</small></div>
+        </button>
+        <button data-page="tiket">
+          <div class="ico" bis_skin_checked="1">T</div>
+          <div class="label" bis_skin_checked="1"><span>Tiket</span><small>List view</small></div>
+        </button>
+        <button data-page="view">
+          <div class="ico" bis_skin_checked="1">🔎</div>
+          <div class="label" bis_skin_checked="1"><span>View Tiket</span><small>List + Filter</small></div>
+        </button>
+      </div>
+
+      
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <div class="topbar" bis_skin_checked="1">
+        <div class="left" bis_skin_checked="1">
+          <h2 id="pageTitle">Master Vendor</h2>
+          <div class="crumb" id="pageCrumb" bis_skin_checked="1">Setup data vendor untuk kebutuhan verifikasi dokumen</div>
+        </div>
+        <div class="right" bis_skin_checked="1">
+          <span class="pill" id="clockPill">Sab, 24 Jan 2026, 18.15</span>
+          <button class="btn btn-indigo" id="btnMockSave">Save (Mock)</button>
+        </div>
+      </div>
+
+      <!-- PAGE: VENDOR -->
+      <section id="page_vendor" class="page" style="display: block;">
+        <div class="card" bis_skin_checked="1">
+          <div class="card-header" bis_skin_checked="1">
+            <div bis_skin_checked="1">
+              <h3>Form Master Vendor</h3>
+              <p>Field: kode vendor, nama vendor, alamat vendor, tanggal join, contact person, NPWP.</p>
+            </div>
+          </div>
+          <div class="card-body" bis_skin_checked="1">
+            <form class="form" id="vendorForm">
+              <div class="field" bis_skin_checked="1">
+                <label>Kode Vendor</label>
+                <input id="v_kode" placeholder="VND-001" required="">
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>Nama Vendor</label>
+                <input id="v_nama" placeholder="PT Contoh Vendor" required="">
+              </div>
+              <div class="field" style="grid-column:1 / -1;" bis_skin_checked="1">
+                <label>Alamat Vendor</label>
+                <textarea id="v_alamat" placeholder="Alamat lengkap..." required=""></textarea>
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>Tanggal Join Vendor</label>
+                <input id="v_join" type="date" required="">
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>Contact Person Vendor</label>
+                <input id="v_cp" placeholder="Nama / HP / Email" required="">
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>NPWP</label>
+                <input id="v_npwp" placeholder="00.000.000.0-000.000" required="">
+              </div>
+            </form>
+
+            <div class="actions" bis_skin_checked="1">
+              <button class="btn" type="button" id="btnSaveVendor">Simpan Vendor</button>
+              <button class="btn-ghost" type="button" id="btnResetVendor">Reset</button>
+              <button class="btn-danger" type="button" id="btnSeedVendor">Generate Vendor Sample</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAGE: KONTRAK -->
+      <section id="page_kontrak" class="page" style="display:none;">
+        <div class="card" bis_skin_checked="1">
+          <div class="card-header" bis_skin_checked="1">
+            <div bis_skin_checked="1">
+              <h3>Form Master Kontrak</h3>
+              <p>Field: nomor kontrak, tanggal kontrak, kode vendor, nama vendor auto, nominal kontrak, jenis kerjasama + termin.</p>
+            </div>
+          </div>
+          <div class="card-body" bis_skin_checked="1">
+            <form class="form" id="kontrakForm">
+              <div class="field" bis_skin_checked="1">
+                <label>Nomor Kontrak</label>
+                <input id="k_nomor" placeholder="CTR-2026-0001" required="">
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>Tanggal Kontrak</label>
+                <input id="k_tanggal" type="date" required="">
+              </div>
+
+              <div class="field" bis_skin_checked="1">
+                <label>Kode Vendor</label>
+                <select id="k_kode_vendor" required=""><option value="" selected="selected">— Pilih Kode Vendor —</option></select>
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>Nama Vendor (Auto)</label>
+                <input id="k_nama_vendor" readonly="readonly" placeholder="Otomatis terisi">
+              </div>
+
+              <div class="field" bis_skin_checked="1">
+                <label>Nominal Kontrak</label>
+                <input id="k_nominal" type="number" min="0" placeholder="250000000" required="">
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>Jenis Kerjasama</label>
+                <select id="k_jenis" required="">
+                  <option value="" selected="selected">— Pilih Jenis —</option>
+                  <option value="progress">Progress</option>
+                  <option value="rutin">Rutin / Bulanan</option>
+                </select>
+              </div>
+
+              <div id="progressWrap" style="display:none; grid-column:1/-1;" bis_skin_checked="1">
+                <div class="form" style="grid-template-columns:1fr 1fr; gap:12px;" bis_skin_checked="1">
+                  <div class="field" bis_skin_checked="1">
+                    <label>Termin</label>
+                    <input id="k_termin" type="number" min="1" max="12" placeholder="1 / 2 / 3 ...">
+                  </div>
+                  <div class="field" bis_skin_checked="1">
+                    <label>Total Persentase</label>
+                    <input id="k_total_persen" readonly="readonly" placeholder="Auto hitung">
+                  </div>
+                </div>
+
+                <div style="height:10px" bis_skin_checked="1"></div>
+
+                <div class="card" style="box-shadow:none;" bis_skin_checked="1">
+                  <div class="card-header" bis_skin_checked="1">
+                    <div bis_skin_checked="1">
+                      <h3>Persentase per Termin</h3>
+                      <p>Field akan muncul sesuai jumlah termin yang diinput.</p>
+                    </div>
+                  </div>
+                  <div class="card-body" bis_skin_checked="1">
+                    <div class="form" id="persenFields" style="grid-template-columns:1fr 1fr 1fr; gap:12px;" bis_skin_checked="1"></div>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            <div class="actions" bis_skin_checked="1">
+              <button class="btn" type="button" id="btnSaveKontrak">Simpan Kontrak</button>
+              <button class="btn-ghost" type="button" id="btnResetKontrak">Reset</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAGE: TIKET (LIST) -->
+      <section id="page_tiket" class="page" style="display:none;">
+        <div class="card" bis_skin_checked="1">
+          <div class="card-header" bis_skin_checked="1">
+            <div bis_skin_checked="1">
+              <h3>List Tiket</h3>
+              <p>Kolom: nomor tiket, tanggal tiket, nomor kontrak, kode vendor, detail.</p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;" bis_skin_checked="1">
+              <button class="btn" id="btnNewTiket">+ Buat Tiket</button>
+              <button class="btn-danger" id="btnClearTiketOnly">Hapus Data Tiket</button>
+              <button class="btn-ghost" id="btnSeedTiket">Generate Sample</button>
+            </div>
+          </div>
+          <div class="card-body" bis_skin_checked="1">
+            <div class="table-wrap" bis_skin_checked="1">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nomor Tiket</th>
+                    <th>Tanggal Tiket</th>
+                    <th>Nomor Kontrak</th>
+                    <th>Kode Vendor</th>
+                    <th style="text-align:right;">Detail</th>
+                  </tr>
+                </thead>
+                <tbody id="tiketTableBody">
+                  <tr><td colspan="5" style="color:var(--muted);">Belum ada data tiket.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAGE: VIEW TIKET (LIST + FILTER) -->
+      <section id="page_view" class="page" style="display:none;">
+        <div class="card" bis_skin_checked="1">
+          <div class="card-header" bis_skin_checked="1">
+            <div bis_skin_checked="1">
+              <h3>View Tiket (List + Filter)</h3>
+              <p>Filter by status, nama vendor, tanggal tiket, nomor tiket. Klik <b>View</b> untuk detail read-only.</p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;" bis_skin_checked="1">
+              <button class="btn-ghost" id="btnResetFilter">Reset Filter</button>
+              <button class="btn" id="btnRefreshViewList">Refresh</button>
+            </div>
+          </div>
+
+          <div class="card-body" bis_skin_checked="1">
+            <!-- FILTERS -->
+            <div class="filters" bis_skin_checked="1">
+              <div class="field" bis_skin_checked="1">
+                <label>Nomor Tiket</label>
+                <input id="f_nomor" placeholder="Contoh: TKT-2026-0001">
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>Nama Vendor</label>
+                <input id="f_vendor" placeholder="Contoh: PT Contoh Vendor">
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>Tanggal Tiket</label>
+                <input id="f_tanggal" type="date">
+              </div>
+              <div class="field" bis_skin_checked="1">
+                <label>Status</label>
+                <select id="f_status">
+                  <option value="" selected="selected">Semua</option>
+                  <option value="complete">Complete</option>
+                  <option value="belum">Belum Complete</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-wrap" bis_skin_checked="1">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nomor Tiket</th>
+                    <th>Tanggal Tiket</th>
+                    <th>Nomor Kontrak</th>
+                    <th>Nama Vendor</th>
+                    <th>Kode Vendor</th>
+                    <th>Status</th>
+                    <th style="text-align:right;">View</th>
+                  </tr>
+                </thead>
+                <tbody id="viewTableBody">
+                  <tr><td colspan="7" style="color:var(--muted);">Belum ada data tiket.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div style="margin-top:12px;color:var(--muted);font-size:12px;" bis_skin_checked="1">
+              Total hasil: <b id="viewCount">0</b>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODAL: DETAIL TIKET (EDITABLE) -->
+      <div id="modalEdit" class="modal" bis_skin_checked="1">
+        <div class="wrap" bis_skin_checked="1">
+          <div class="head" bis_skin_checked="1">
+            <div style="display:flex;flex-direction:column;" bis_skin_checked="1">
+              <b style="font-size:13px;">Detail Tiket (Editable)</b>
+              <span id="editSub" style="font-size:12px;color:var(--muted); margin-top:4px;">—</span>
+            </div>
+            <div style="display:flex; gap:10px;" bis_skin_checked="1">
+              <button class="btn" id="btnSaveTiketModal">Simpan Tiket</button>
+              <button class="btn-ghost" id="btnCloseEdit">Tutup</button>
+            </div>
+          </div>
+
+          <div class="body" bis_skin_checked="1">
+            <div class="card" style="box-shadow:none;" bis_skin_checked="1">
+              <div class="card-header" bis_skin_checked="1">
+                <div bis_skin_checked="1">
+                  <h3>Form Tiket</h3>
+                  <p>Nomor tiket, tanggal tiket auto, nomor kontrak, vendor, upload dokumen, status.</p>
+                </div>
+              </div>
+              <div class="card-body" bis_skin_checked="1">
+                <form class="form" id="tiketDetailForm">
+                  <div class="field" bis_skin_checked="1">
+                    <label>Nomor Tiket</label>
+                    <input id="t_nomor" required="">
+                  </div>
+                  <div class="field" bis_skin_checked="1">
+                    <label>Tanggal Tiket</label>
+                    <input id="t_tanggal" type="date" readonly="readonly">
+                  </div>
+
+                  <div class="field" bis_skin_checked="1">
+                    <label>Nomor Kontrak</label>
+                    <input id="t_nomor_kontrak" required="">
+                  </div>
+
+                  <div class="field" bis_skin_checked="1">
+                    <label>Kode Vendor</label>
+                    <select id="t_kode_vendor" required=""><option value="" selected="selected">— Pilih Kode Vendor —</option></select>
+                  </div>
+
+                  <div class="field" bis_skin_checked="1">
+                    <label>Nama Vendor (Auto)</label>
+                    <input id="t_nama_vendor" readonly="readonly">
+                  </div>
+
+                  <div class="field" bis_skin_checked="1">
+                    <label>Status Tiket</label>
+                    <select id="t_status" required="">
+                      <option value="" selected="selected">— Pilih Status —</option>
+                      <option value="complete">Complete</option>
+                      <option value="belum">Belum Complete</option>
+                    </select>
+                  </div>
+
+                  <div class="field" style="grid-column:1/-1;" bis_skin_checked="1">
+                    <label>Upload Dokumen</label>
+                    <div class="uploads" bis_skin_checked="1">
+                      <div class="upload" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>Kontrak</b><span class="filepill" id="pill_kontrak">Belum ada</span></div>
+                        <input type="file" id="f_kontrak" accept=".pdf,.jpg,.jpeg,.png">
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="kontrak">Lihat</span></div>
+                      </div>
+
+                      <div class="upload" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>Invoice</b><span class="filepill" id="pill_invoice">Belum ada</span></div>
+                        <input type="file" id="f_invoice" accept=".pdf,.jpg,.jpeg,.png">
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="invoice">Lihat</span></div>
+                      </div>
+
+                      <div class="upload" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>BAST</b><span class="filepill" id="pill_bast">Belum ada</span></div>
+                        <input type="file" id="f_bast" accept=".pdf,.jpg,.jpeg,.png">
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="bast">Lihat</span></div>
+                      </div>
+
+                      <div class="upload" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>NPWP</b><span class="filepill" id="pill_npwp">Belum ada</span></div>
+                        <input type="file" id="f_npwp" accept=".pdf,.jpg,.jpeg,.png">
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="npwp">Lihat</span></div>
+                      </div>
+
+                      <div class="upload" style="grid-column:1/-1;" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>Faktur Pajak</b><span class="filepill" id="pill_fp">Belum ada</span></div>
+                        <input type="file" id="f_fp" accept=".pdf,.jpg,.jpeg,.png">
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="fp">Lihat</span></div>
+                      </div>
+                    </div>
+
+                    <div class="hint" style="margin-top:8px;" bis_skin_checked="1">Mock: hanya simpan nama file (localStorage)</div>
+                  </div>
+
+                  <div class="field" bis_skin_checked="1">
+                    <label>Kelengkapan Dokumen</label>
+                    <input id="t_kelengkapan" readonly="readonly">
+                  </div>
+
+                  <div class="field" bis_skin_checked="1">
+                    <label>Catatan (Opsional)</label>
+                    <input placeholder="Catatan internal...">
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- MODAL: VIEW TIKET (READ-ONLY) -->
+      <div id="modalView" class="modal" bis_skin_checked="1">
+        <div class="wrap" bis_skin_checked="1">
+          <div class="head" bis_skin_checked="1">
+            <div style="display:flex;flex-direction:column;" bis_skin_checked="1">
+              <b style="font-size:13px;">View Tiket (Read-only)</b>
+              <span id="viewSub" style="font-size:12px;color:var(--muted); margin-top:4px;">—</span>
+            </div>
+            <button class="btn-ghost" id="btnCloseView">Tutup</button>
+          </div>
+
+          <div class="body" bis_skin_checked="1">
+            <div class="card readonly" style="box-shadow:none;" bis_skin_checked="1">
+              <div class="card-header" bis_skin_checked="1">
+                <div bis_skin_checked="1">
+                  <h3>Detail Tiket</h3>
+                  <p>Semua field hanya view, tidak bisa diubah.</p>
+                </div>
+              </div>
+              <div class="card-body" bis_skin_checked="1">
+                <form class="form">
+                  <!-- ✅ Nama Vendor di kiri, Kode Vendor di kanan -->
+                  <div class="field" bis_skin_checked="1">
+                    <label>Nama Vendor</label>
+                    <input id="vw_nama_vendor">
+                  </div>
+                  <div class="field" bis_skin_checked="1">
+                    <label>Kode Vendor</label>
+                    <input id="vw_kode_vendor">
+                  </div>
+
+                  <div class="field" bis_skin_checked="1">
+                    <label>Nomor Tiket</label>
+                    <input id="vw_nomor">
+                  </div>
+                  <div class="field" bis_skin_checked="1">
+                    <label>Tanggal Tiket</label>
+                    <input id="vw_tanggal">
+                  </div>
+
+                  <div class="field" bis_skin_checked="1">
+                    <label>Nomor Kontrak</label>
+                    <input id="vw_nomor_kontrak">
+                  </div>
+                  <div class="field" bis_skin_checked="1">
+                    <label>Status Tiket</label>
+                    <input id="vw_status">
+                  </div>
+
+                  <div class="field" style="grid-column:1/-1;" bis_skin_checked="1">
+                    <label>Dokumen</label>
+                    <div class="uploads" bis_skin_checked="1">
+                      <div class="upload" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>Kontrak</b><span class="filepill" id="vw_pill_kontrak">—</span></div>
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="kontrak">Lihat</span></div>
+                      </div>
+
+                      <div class="upload" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>Invoice</b><span class="filepill" id="vw_pill_invoice">—</span></div>
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="invoice">Lihat</span></div>
+                      </div>
+
+                      <div class="upload" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>BAST</b><span class="filepill" id="vw_pill_bast">—</span></div>
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="bast">Lihat</span></div>
+                      </div>
+
+                      <div class="upload" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>NPWP</b><span class="filepill" id="vw_pill_npwp">—</span></div>
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="npwp">Lihat</span></div>
+                      </div>
+
+                      <div class="upload" style="grid-column:1/-1;" bis_skin_checked="1">
+                        <div class="top" bis_skin_checked="1"><b>Faktur Pajak</b><span class="filepill" id="vw_pill_fp">—</span></div>
+                        <div class="preview" bis_skin_checked="1"><span>Preview</span><span class="link" data-preview="fp">Lihat</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="field" bis_skin_checked="1">
+                    <label>Kelengkapan Dokumen</label>
+                    <input id="vw_kelengkapan">
+                  </div>
+                  <div class="field" bis_skin_checked="1">
+                    <label>Info</label>
+                    <input value="Read-only mode">
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- MODAL: PREVIEW FILE (MOCK) -->
+      <div id="modalPreview" class="modal" bis_skin_checked="1">
+        <div class="wrap" bis_skin_checked="1">
+          <div class="head" bis_skin_checked="1">
+            <div style="display:flex;flex-direction:column;" bis_skin_checked="1">
+              <b id="pTitle" style="font-size:13px;">Preview</b>
+              <span id="pSub" style="font-size:12px;color:var(--muted); margin-top:4px;">—</span>
+            </div>
+            <button class="btn-ghost" id="btnClosePreview">Tutup</button>
+          </div>
+          <div class="body" style="padding:0;" bis_skin_checked="1">
+            <iframe id="pFrame" style="width:100%;height:100%;border:0;"></iframe>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+<script>
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => document.querySelectorAll(sel);
+
+  const LS = {
+    vendorList: "mock_vendor_list",
+    kontrakLast: "mock_kontrak_last",
+    tiketList: "mock_tiket_list",
+    tiketDocs: "mock_tiket_docs",
+  };
+
+  function todayISO(){
+    const d = new Date();
+    const pad = (n)=> String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
+  function toast(msg){ alert(msg); }
+
+  function setClock(){
+    const d = new Date();
+    $("#clockPill").textContent = d.toLocaleString("id-ID", {
+      weekday:"short", year:"numeric", month:"short", day:"2-digit",
+      hour:"2-digit", minute:"2-digit"
+    });
+  }
+  setClock();
+  setInterval(setClock, 30000);
+
+  // NAV
+  const pages = {
+    vendor: { title:"Master Vendor", crumb:"Setup data vendor untuk kebutuhan verifikasi dokumen", el:"#page_vendor" },
+    kontrak:{ title:"Master Kontrak", crumb:"Kelola kontrak vendor", el:"#page_kontrak" },
+    tiket:  { title:"Tiket (List)", crumb:"Klik Detail untuk input/ubah tiket", el:"#page_tiket" },
+    view:   { title:"View Tiket (List + Filter)", crumb:"Filter tiket lalu klik View", el:"#page_view" },
+  };
+
+  function showPage(key){
+    Object.values(pages).forEach(p => $(p.el).style.display = "none");
+    $(pages[key].el).style.display = "block";
+
+    $("#pageTitle").textContent = pages[key].title;
+    $("#pageCrumb").textContent = pages[key].crumb;
+
+    $$(".nav button").forEach(b => b.classList.remove("active"));
+    $(`.nav button[data-page="${key}"]`).classList.add("active");
+
+    if(key === "kontrak" || key === "tiket") hydrateVendorSelects();
+    if(key === "tiket") renderTiketTable();
+    if(key === "view") renderViewTable();
+  }
+
+  $$(".nav button").forEach(btn=>{
+    btn.addEventListener("click", ()=> showPage(btn.dataset.page));
+  });
+
+  // Storage helpers
+  function getVendorList(){
+    return JSON.parse(localStorage.getItem(LS.vendorList) || "[]");
+  }
+  function setVendorList(list){
+    localStorage.setItem(LS.vendorList, JSON.stringify(list));
+  }
+
+  function getTiketList(){
+    return JSON.parse(localStorage.getItem(LS.tiketList) || "[]");
+  }
+  function setTiketList(list){
+    localStorage.setItem(LS.tiketList, JSON.stringify(list));
+  }
+
+  function findVendor(kode){
+    return getVendorList().find(v => v.kode === kode);
+  }
+
+  // VENDOR PAGE
+  $("#btnSaveVendor").addEventListener("click", ()=>{
+    const vendor = {
+      kode: $("#v_kode").value.trim(),
+      nama: $("#v_nama").value.trim(),
+      alamat: $("#v_alamat").value.trim(),
+      join: $("#v_join").value,
+      cp: $("#v_cp").value.trim(),
+      npwp: $("#v_npwp").value.trim(),
+    };
+    if(!vendor.kode || !vendor.nama || !vendor.alamat || !vendor.join || !vendor.cp || !vendor.npwp){
+      toast("Lengkapi semua field vendor.");
+      return;
+    }
+    const list = getVendorList();
+    const idx = list.findIndex(v => v.kode.toLowerCase() === vendor.kode.toLowerCase());
+    if(idx >= 0) list[idx] = vendor; else list.push(vendor);
+    setVendorList(list);
+    hydrateVendorSelects();
+    toast("Vendor tersimpan (mock).");
+  });
+
+  $("#btnResetVendor").addEventListener("click", ()=> $("#vendorForm").reset());
+
+  $("#btnSeedVendor").addEventListener("click", ()=>{
+    const list = getVendorList();
+    if(list.length > 0){
+      toast("Vendor sample sudah ada.");
+      return;
+    }
+    const sample = [
+      { kode:"VND-001", nama:"PT Maju Jaya", alamat:"Jakarta", join:todayISO(), cp:"Andi - 0812xxxx", npwp:"00.000.000.0-000.000" },
+      { kode:"VND-002", nama:"CV Sinar Abadi", alamat:"Bandung", join:todayISO(), cp:"Budi - 0813xxxx", npwp:"11.111.111.1-111.111" },
+      { kode:"VND-003", nama:"PT Nusantara Global", alamat:"Surabaya", join:todayISO(), cp:"Citra - 0814xxxx", npwp:"22.222.222.2-222.222" },
+    ];
+    setVendorList(sample);
+    hydrateVendorSelects();
+    toast("Vendor sample dibuat.");
+  });
+
+  // Hydrate selects
+  function hydrateVendorSelects(){
+    const list = getVendorList();
+    const selKontrak = $("#k_kode_vendor");
+    const selTiket = $("#t_kode_vendor");
+
+    if(selKontrak){
+      const cur = selKontrak.value;
+      selKontrak.innerHTML = `<option value="">— Pilih Kode Vendor —</option>`;
+      list.forEach(v=>{
+        const o = document.createElement("option");
+        o.value = v.kode;
+        o.textContent = `${v.kode} — ${v.nama}`;
+        selKontrak.appendChild(o);
+      });
+      selKontrak.value = cur;
+    }
+
+    if(selTiket){
+      const cur = selTiket.value;
+      selTiket.innerHTML = `<option value="">— Pilih Kode Vendor —</option>`;
+      list.forEach(v=>{
+        const o = document.createElement("option");
+        o.value = v.kode;
+        o.textContent = `${v.kode} — ${v.nama}`;
+        selTiket.appendChild(o);
+      });
+      selTiket.value = cur;
+    }
+  }
+
+  // KONTRAK logic
+  $("#k_kode_vendor").addEventListener("change", ()=>{
+    const v = findVendor($("#k_kode_vendor").value);
+    $("#k_nama_vendor").value = v ? v.nama : "";
+  });
+
+  $("#k_jenis").addEventListener("change", ()=>{
+    if($("#k_jenis").value === "progress") $("#progressWrap").style.display="block";
+    else {
+      $("#progressWrap").style.display="none";
+      $("#k_termin").value="";
+      $("#persenFields").innerHTML="";
+      $("#k_total_persen").value="";
+    }
+  });
+
+  $("#k_termin").addEventListener("input", ()=>{
+    const termin = Number($("#k_termin").value || 0);
+    const container = $("#persenFields");
+    container.innerHTML = "";
+    if(!termin || termin < 1) return;
+
+    for(let i=1;i<=termin;i++){
+      const div = document.createElement("div");
+      div.className="field";
+      div.innerHTML = `
+        <label>Persentase Termin ${i} (%)</label>
+        <input class="persen" type="number" min="0" max="100" placeholder="Contoh: 50">
+      `;
+      container.appendChild(div);
+    }
+
+    container.querySelectorAll(".persen").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const total = [...container.querySelectorAll(".persen")]
+          .map(x=>Number(x.value||0))
+          .reduce((a,b)=>a+b,0);
+        $("#k_total_persen").value = total ? total + "%" : "";
+      });
+    });
+  });
+
+  $("#btnSaveKontrak").addEventListener("click", ()=>{
+    const data = {
+      nomor: $("#k_nomor").value.trim(),
+      tanggal: $("#k_tanggal").value,
+      kode_vendor: $("#k_kode_vendor").value,
+      nama_vendor: $("#k_nama_vendor").value,
+      nominal: $("#k_nominal").value,
+      jenis: $("#k_jenis").value,
+    };
+    if(!data.nomor || !data.tanggal || !data.kode_vendor || !data.nominal || !data.jenis){
+      toast("Lengkapi field wajib kontrak.");
+      return;
+    }
+    localStorage.setItem(LS.kontrakLast, JSON.stringify(data));
+    toast("Kontrak tersimpan (mock).");
+  });
+
+  $("#btnResetKontrak").addEventListener("click", ()=>{
+    $("#kontrakForm").reset();
+    $("#k_nama_vendor").value="";
+    $("#progressWrap").style.display="none";
+    $("#persenFields").innerHTML="";
+    $("#k_total_persen").value="";
+  });
+
+  // TIKET LIST
+  function renderTiketTable(){
+    const list = getTiketList();
+    const tbody = $("#tiketTableBody");
+    if(list.length === 0){
+      tbody.innerHTML = `<tr><td colspan="5" style="color:var(--muted);">Belum ada data tiket.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = list.map((t, idx)=>`
+      <tr>
+        <td>${t.nomor}</td>
+        <td>${t.tanggal}</td>
+        <td>${t.nomor_kontrak}</td>
+        <td>${t.kode_vendor}</td>
+        <td style="text-align:right;"><span class="detail-link" data-detail="${idx}">Detail</span></td>
+      </tr>
+    `).join("");
+  }
+
+  $("#btnNewTiket").addEventListener("click", ()=> openEditModal(null));
+
+  $("#btnClearTiketOnly").addEventListener("click", ()=>{
+    const ok = confirm("Hapus semua data tiket?");
+    if(!ok) return;
+    localStorage.removeItem(LS.tiketList);
+    renderTiketTable();
+    renderViewTable();
+    toast("Data tiket dihapus.");
+  });
+
+  $("#btnSeedTiket").addEventListener("click", ()=>{
+    const list = getTiketList();
+    if(list.length > 0){
+      toast("Sample tiket sudah ada.");
+      return;
+    }
+    const sample = [
+      { nomor:"TKT-2026-0001", tanggal:todayISO(), nomor_kontrak:"CTR-2026-0001", kode_vendor:"VND-001", status:"belum", kelengkapan:"0/5", docs:{} },
+      { nomor:"TKT-2026-0002", tanggal:todayISO(), nomor_kontrak:"CTR-2026-0002", kode_vendor:"VND-002", status:"complete", kelengkapan:"5/5", docs:{} },
+    ];
+    setTiketList(sample);
+    renderTiketTable();
+    renderViewTable();
+    toast("Sample tiket dibuat.");
+  });
+
+  // EDIT MODAL
+  function openEditModal(prefill){
+    $("#modalEdit").style.display="block";
+    $("#t_tanggal").value = todayISO();
+    $("#editSub").textContent = prefill ? `Edit Tiket: ${prefill.nomor}` : "Buat Tiket Baru";
+
+    // init docs
+    localStorage.setItem(LS.tiketDocs, JSON.stringify({
+      kontrak:null, invoice:null, bast:null, npwp:null, fp:null
+    }));
+
+    // reset pills
+    ["kontrak","invoice","bast","npwp","fp"].forEach(k=>{
+      $("#pill_"+k).textContent = "Belum ada";
+    });
+
+    if(prefill){
+      $("#t_nomor").value = prefill.nomor;
+      $("#t_tanggal").value = prefill.tanggal;
+      $("#t_nomor_kontrak").value = prefill.nomor_kontrak;
+      $("#t_kode_vendor").value = prefill.kode_vendor;
+      const v = findVendor(prefill.kode_vendor);
+      $("#t_nama_vendor").value = v ? v.nama : "";
+      $("#t_status").value = prefill.status;
+      $("#t_kelengkapan").value = prefill.kelengkapan || "-";
+
+      const docs = prefill.docs || {};
+      localStorage.setItem(LS.tiketDocs, JSON.stringify(docs));
+      Object.keys(docs).forEach(k=>{
+        if(docs[k]?.name) $("#pill_"+k).textContent = docs[k].name;
+      });
+    }else{
+      $("#tiketDetailForm").reset();
+      $("#t_tanggal").value = todayISO();
+      $("#t_nama_vendor").value="";
+      $("#t_kelengkapan").value="0/5 dokumen terisi";
+    }
+
+    hydrateVendorSelects();
+    calcKelengkapan();
+  }
+
+  function closeEditModal(){
+    $("#modalEdit").style.display="none";
+  }
+  $("#btnCloseEdit").addEventListener("click", closeEditModal);
+  $("#modalEdit").addEventListener("click", (e)=>{ if(e.target.id==="modalEdit") closeEditModal(); });
+
+  $("#t_kode_vendor").addEventListener("change", ()=>{
+    const v = findVendor($("#t_kode_vendor").value);
+    $("#t_nama_vendor").value = v ? v.nama : "";
+  });
+
+  const docKeys = ["kontrak","invoice","bast","npwp","fp"];
+  const inputMap = { kontrak:"#f_kontrak", invoice:"#f_invoice", bast:"#f_bast", npwp:"#f_npwp", fp:"#f_fp" };
+  const docsState = { kontrak:null, invoice:null, bast:null, npwp:null, fp:null };
+
+  function persistDocs(){
+    const safe = {};
+    docKeys.forEach(k=> safe[k] = docsState[k] ? { name: docsState[k].name, type: docsState[k].type } : null);
+    localStorage.setItem(LS.tiketDocs, JSON.stringify(safe));
+  }
+
+  function calcKelengkapan(){
+    const raw = localStorage.getItem(LS.tiketDocs);
+    const docs = raw ? JSON.parse(raw) : {};
+    const filled = docKeys.filter(k=> docs?.[k]?.name).length;
+    $("#t_kelengkapan").value = `${filled}/5 dokumen terisi`;
+  }
+
+  docKeys.forEach(key=>{
+    $(inputMap[key]).addEventListener("change", ()=>{
+      const f = $(inputMap[key]).files?.[0] || null;
+      docsState[key] = f ? { name:f.name, type:f.type } : null;
+      $("#pill_"+key).textContent = docsState[key]?.name || "Belum ada";
+      persistDocs();
+      calcKelengkapan();
+    });
+  });
+
+  $("#btnSaveTiketModal").addEventListener("click", ()=>{
+    const tiket = {
+      nomor: $("#t_nomor").value.trim(),
+      tanggal: $("#t_tanggal").value,
+      nomor_kontrak: $("#t_nomor_kontrak").value.trim(),
+      kode_vendor: $("#t_kode_vendor").value,
+      status: $("#t_status").value,
+      kelengkapan: $("#t_kelengkapan").value,
+      docs: JSON.parse(localStorage.getItem(LS.tiketDocs) || "{}")
+    };
+
+    if(!tiket.nomor || !tiket.nomor_kontrak || !tiket.kode_vendor || !tiket.status){
+      toast("Lengkapi field wajib tiket.");
+      return;
+    }
+
+    let list = getTiketList();
+    const idx = list.findIndex(x=> x.nomor === tiket.nomor);
+    if(idx >= 0) list[idx] = tiket; else list.unshift(tiket);
+
+    setTiketList(list);
+    renderTiketTable();
+    renderViewTable();
+    toast("Tiket tersimpan.");
+    closeEditModal();
+  });
+
+  // VIEW TABLE + FILTER
+  function applyFilters(list){
+    const nomor = $("#f_nomor").value.trim().toLowerCase();
+    const vendor = $("#f_vendor").value.trim().toLowerCase();
+    const tanggal = $("#f_tanggal").value;
+    const status = $("#f_status").value;
+
+    return list.filter(t=>{
+      const v = findVendor(t.kode_vendor);
+      const namaVendor = (v?.nama || "").toLowerCase();
+
+      const okNomor = !nomor || (t.nomor||"").toLowerCase().includes(nomor);
+      const okVendor = !vendor || namaVendor.includes(vendor);
+      const okTanggal = !tanggal || t.tanggal === tanggal;
+      const okStatus = !status || t.status === status;
+
+      return okNomor && okVendor && okTanggal && okStatus;
+    });
+  }
+
+  function renderViewTable(){
+    const list = getTiketList();
+    const filtered = applyFilters(list);
+
+    const tbody = $("#viewTableBody");
+    $("#viewCount").textContent = filtered.length;
+
+    if(filtered.length === 0){
+      tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);">Tidak ada hasil sesuai filter.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map((t)=>{
+      const v = findVendor(t.kode_vendor);
+      const namaVendor = v ? v.nama : "-";
+      const pill = t.status === "complete" ? "complete" : "belum";
+      const label = t.status === "complete" ? "Complete" : "Belum Complete";
+
+      return `
+        <tr>
+          <td>${t.nomor}</td>
+          <td>${t.tanggal}</td>
+          <td>${t.nomor_kontrak}</td>
+          <td>${namaVendor}</td>
+          <td>${t.kode_vendor}</td>
+          <td><span class="status-pill ${pill}">${label}</span></td>
+          <td style="text-align:right;"><span class="detail-link" data-view="${t.nomor}">View</span></td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  ["f_nomor","f_vendor","f_tanggal","f_status"].forEach(id=>{
+    $("#"+id).addEventListener("input", renderViewTable);
+    $("#"+id).addEventListener("change", renderViewTable);
+  });
+
+  $("#btnResetFilter").addEventListener("click", ()=>{
+    $("#f_nomor").value="";
+    $("#f_vendor").value="";
+    $("#f_tanggal").value="";
+    $("#f_status").value="";
+    renderViewTable();
+  });
+
+  $("#btnRefreshViewList").addEventListener("click", renderViewTable);
+
+  // VIEW MODAL (READONLY)
+  function openViewModalByNomor(nomor){
+    const list = getTiketList();
+    const t = list.find(x=> x.nomor === nomor);
+    if(!t){ toast("Data tiket tidak ditemukan."); return; }
+
+    const v = findVendor(t.kode_vendor);
+    const namaVendor = v ? v.nama : "-";
+
+    $("#modalView").style.display="block";
+    $("#viewSub").textContent = `Nomor Tiket: ${t.nomor}`;
+
+    $("#vw_nama_vendor").value = namaVendor;
+    $("#vw_kode_vendor").value = t.kode_vendor;
+    $("#vw_nomor").value = t.nomor;
+    $("#vw_tanggal").value = t.tanggal;
+    $("#vw_nomor_kontrak").value = t.nomor_kontrak;
+    $("#vw_status").value = t.status === "complete" ? "Complete" : "Belum Complete";
+    $("#vw_kelengkapan").value = t.kelengkapan || "-";
+
+    const docs = t.docs || {};
+    $("#vw_pill_kontrak").textContent = docs.kontrak?.name || "Belum ada";
+    $("#vw_pill_invoice").textContent = docs.invoice?.name || "Belum ada";
+    $("#vw_pill_bast").textContent = docs.bast?.name || "Belum ada";
+    $("#vw_pill_npwp").textContent = docs.npwp?.name || "Belum ada";
+    $("#vw_pill_fp").textContent = docs.fp?.name || "Belum ada";
+
+    // set docs for preview modal
+    localStorage.setItem(LS.tiketDocs, JSON.stringify(docs));
+  }
+
+  function closeViewModal(){
+    $("#modalView").style.display="none";
+  }
+  $("#btnCloseView").addEventListener("click", closeViewModal);
+  $("#modalView").addEventListener("click", (e)=>{ if(e.target.id==="modalView") closeViewModal(); });
+
+  // Click handler for tables
+  document.addEventListener("click", (e)=>{
+    const el = e.target;
+
+    if(el.matches(".detail-link[data-detail]")){
+      const idx = Number(el.getAttribute("data-detail"));
+      const list = getTiketList();
+      openEditModal(list[idx]);
+    }
+
+    if(el.matches(".detail-link[data-view]")){
+      const nomor = el.getAttribute("data-view");
+      openViewModalByNomor(nomor);
+    }
+  });
+
+  // PREVIEW MODAL
+  const previewText = {
+    kontrak: "Preview Kontrak (Mock)",
+    invoice: "Preview Invoice (Mock)",
+    bast: "Preview BAST (Mock)",
+    npwp: "Preview NPWP (Mock)",
+    fp: "Preview Faktur Pajak (Mock)"
+  };
+
+  function openPreview(key){
+    $("#modalPreview").style.display="block";
+    $("#pTitle").textContent = `Preview: ${key.toUpperCase()}`;
+
+    const raw = localStorage.getItem(LS.tiketDocs);
+    const docs = raw ? JSON.parse(raw) : {};
+    const name = docs?.[key]?.name || "Belum ada file";
+    $("#pSub").textContent = name;
+
+    const html = `
+      <html><head><meta charset="utf-8"/>
+      <style>
+        body{margin:0;font-family:system-ui;background:#f6f8fc;color:#0f172a}
+        .wrap{padding:18px}
+        .card{border:1px solid rgba(15,23,42,.12);border-radius:16px;padding:14px;background:#fff}
+        .h{font-weight:900;font-size:16px}
+        .p{margin-top:8px;color:#64748b;line-height:1.5}
+        .meta{margin-top:12px;font-size:12px;color:#64748b}
+        .box{margin-top:14px;border:1px dashed rgba(15,23,42,.18);border-radius:14px;padding:14px;color:#64748b}
+      </style></head>
+      <body><div class="wrap">
+        <div class="card">
+          <div class="h">${key.toUpperCase()}</div>
+          <div class="p">${previewText[key]}</div>
+          <div class="meta">Nama File: <b>${name}</b></div>
+          <div class="box">Area preview PDF/Image — placeholder mock</div>
+        </div>
+      </div></body></html>
+    `;
+    $("#pFrame").srcdoc = html;
+  }
+
+  document.addEventListener("click", (e)=>{
+    const t = e.target;
+    if(t && t.matches(".link[data-preview]")){
+      openPreview(t.getAttribute("data-preview"));
+    }
+  });
+
+  $("#btnClosePreview").addEventListener("click", ()=> $("#modalPreview").style.display="none");
+  $("#modalPreview").addEventListener("click", (e)=>{ if(e.target.id==="modalPreview") $("#modalPreview").style.display="none"; });
+
+  // General mock save
+  $("#btnMockSave").addEventListener("click", ()=> toast("Mock Save: gunakan tombol simpan pada masing-masing form."));
+
+  // Init
+  hydrateVendorSelects();
+  showPage("vendor");
+</script>
+
+
+<div class="adsbox ads ad adsbox doubleclick ad-placement carbon-ads" id="google_ads_iframe_/6355419/Travel/Europe/France/Paris_0__container__" bis_skin_checked="1">&nbsp;</div></body></html>
