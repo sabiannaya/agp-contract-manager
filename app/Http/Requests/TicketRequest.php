@@ -26,7 +26,10 @@ class TicketRequest extends FormRequest
             'date' => ['required', 'date'],
             'contract_id' => ['required', 'exists:contracts,id'],
             'vendor_id' => ['required', 'exists:vendors,id'],
+            'amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999999999.99'],
             'status' => ['sometimes', Rule::in(['complete', 'incomplete'])],
+            'reference_no' => ['nullable', 'string', 'max:100'],
+            'replaces_ticket_id' => ['nullable', 'exists:tickets,id'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['boolean'],
         ];

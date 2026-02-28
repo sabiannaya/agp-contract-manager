@@ -84,7 +84,7 @@ class VendorController extends Controller
         $vendor->update($data);
 
         return redirect()
-            ->route('vendors.index')
+            ->back()
             ->with('success', 'Vendor updated successfully.');
     }
 

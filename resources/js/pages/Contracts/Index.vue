@@ -4,6 +4,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { Eye, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,14 +24,16 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import { useDateFormat } from '@/composables/useDateFormat';
 import { usePermission } from '@/composables/usePermission';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { destroy as destroyRoute, index, show, store, update } from '@/routes/contracts';
+import { create as createRoute, destroy as destroyRoute, edit as editRoute, index, show, store, update } from '@/routes/contracts';
 import { list as vendorList } from '@/routes/vendors';
 import type { BreadcrumbItem } from '@/types';
 import type {
@@ -41,14 +44,24 @@ import type {
     VendorOption,
 } from '@/types/models';
 
+interface EligibleUser {
+    id: number;
+    name: string;
+    email: string;
+}
+
 const props = defineProps<{
     contracts: PaginatedData<Contract>;
     filters: ContractFilters;
+    eligibleMasters?: EligibleUser[];
 }>();
 
 const { t } = useI18n();
 const { formatDateOnly } = useDateFormat();
 const { canCreate, canUpdate, canDelete } = usePermission();
+const saveConfirmation = useActionConfirmation();
+const deleteConfirmation = useActionConfirmation();
+const approverConfirmation = useActionConfirmation();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     { title: t('nav.contracts'), href: index().url },
@@ -126,12 +139,23 @@ const cooperationTypeOptions = computed(() => [
     { value: 'progress', label: t('contracts.types.progress') },
 ]);
 
+const masterOptions = computed(() =>
+    (props.eligibleMasters ?? []).map((u) => ({ value: u.id, label: `${u.name} (${u.email})` })),
+);
+
+const approverOptions = computed(() => masterOptions.value);
+
+type ApproverRow = {
+    user_id: number | null;
+    sequence_no: number;
+    remarks: string;
+};
+
 // Modal state
 const isFormModalOpen = ref(false);
-const isDeleteModalOpen = ref(false);
 const editingContract = ref<Contract | null>(null);
 
-const form = useForm<ContractForm>({
+const form = useForm<ContractForm & { assigned_master_user_id: number | null }>({
     number: '',
     date: new Date().toISOString().split('T')[0],
     vendor_id: null,
@@ -140,6 +164,11 @@ const form = useForm<ContractForm>({
     term_count: null,
     term_percentages: [],
     is_active: true,
+    assigned_master_user_id: null,
+});
+
+const approverForm = useForm<{ approvers: ApproverRow[] }>({
+    approvers: [{ user_id: null, sequence_no: 1, remarks: '' }],
 });
 
 const modalTitle = computed(() =>
@@ -182,11 +211,22 @@ function openCreateModal() {
     form.reset();
     form.clearErrors();
     termInputs.value = [];
+    form.assigned_master_user_id = null;
+    approverForm.approvers = [{ user_id: null, sequence_no: 1, remarks: '' }];
+    approverForm.clearErrors();
     isFormModalOpen.value = true;
 }
 
 function viewContract(contract: Contract) {
     router.get(show(contract.id).url);
+}
+
+function goCreatePage() {
+    router.get(createRoute().url);
+}
+
+function goEditPage(contract: Contract) {
+    router.get(editRoute(contract.id).url);
 }
 
 function openEditModal(contract: Contract) {
@@ -200,16 +240,92 @@ function openEditModal(contract: Contract) {
     form.term_percentages = contract.term_percentages ?? [];
     termInputs.value = contract.term_percentages ?? [];
     form.is_active = contract.is_active;
+    form.assigned_master_user_id = (contract as any).assigned_master_user_id ?? null;
     form.clearErrors();
+    hydrateApproverForm(contract);
+    approverForm.clearErrors();
     isFormModalOpen.value = true;
+}
+
+function hydrateApproverForm(contract: Contract | null) {
+    approverForm.approvers = ((contract as any)?.approvers ?? []).map((approver: any, index: number) => ({
+        user_id: approver.user_id ?? null,
+        sequence_no: approver.sequence_no ?? index + 1,
+        remarks: approver.remarks ?? '',
+    }));
+
+    if (approverForm.approvers.length === 0) {
+        approverForm.approvers = [{ user_id: null, sequence_no: 1, remarks: '' }];
+    }
+}
+
+function normalizeApproverSequence() {
+    approverForm.approvers = approverForm.approvers.map((row, index) => ({
+        ...row,
+        sequence_no: index + 1,
+    }));
+}
+
+function addApproverRow() {
+    approverForm.approvers.push({
+        user_id: null,
+        sequence_no: approverForm.approvers.length + 1,
+        remarks: '',
+    });
+}
+
+function removeApproverRow(index: number) {
+    approverForm.approvers.splice(index, 1);
+    normalizeApproverSequence();
+}
+
+function executeSaveApprovers() {
+    if (!editingContract.value) return;
+
+    normalizeApproverSequence();
+    approverForm.post(`/contracts/${editingContract.value.id}/approvers`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            router.reload({ only: ['contracts'] });
+        },
+    });
+}
+
+function submitApprovers() {
+    if (!editingContract.value) return;
+
+    approverConfirmation.requestConfirmation(
+        {
+            title: t('contracts.approvers'),
+            description: 'Update contract approvers and their workflow reason.',
+            confirmText: t('common.save'),
+            details: [
+                { label: t('contracts.number'), value: editingContract.value.number },
+                { label: t('contracts.approvers'), value: String(approverForm.approvers.length) },
+            ],
+        },
+        executeSaveApprovers,
+    );
 }
 
 function openDeleteModal(contract: Contract) {
     editingContract.value = contract;
-    isDeleteModalOpen.value = true;
+    deleteConfirmation.requestConfirmation(
+        {
+            title: t('common.confirm_delete'),
+            description: t('contracts.delete_confirmation', { number: contract.number }),
+            confirmText: t('common.delete'),
+            destructive: true,
+            details: [
+                { label: t('contracts.number'), value: contract.number },
+                { label: t('contracts.amount'), value: formatCurrency(contract.amount) },
+            ],
+        },
+        confirmDelete,
+    );
 }
 
-function submitForm() {
+function executeSubmitForm() {
     if (editingContract.value) {
         form.put(update(editingContract.value.id).url, {
             onSuccess: () => {
@@ -225,12 +341,27 @@ function submitForm() {
     }
 }
 
+function submitForm() {
+    saveConfirmation.requestConfirmation(
+        {
+            title: editingContract.value ? t('common.update') : t('common.create'),
+            description: editingContract.value ? t('contracts.edit_description') : t('contracts.create_description'),
+            confirmText: t('common.save'),
+            details: [
+                { label: t('contracts.number'), value: form.number || '-' },
+                { label: t('contracts.vendor'), value: vendorOptions.value.find((v) => v.value === form.vendor_id)?.label ?? '-' },
+                { label: t('contracts.amount'), value: formatCurrency(form.amount ?? 0) },
+            ],
+        },
+        executeSubmitForm,
+    );
+}
+
 function confirmDelete() {
     if (!editingContract.value) return;
 
     router.delete(destroyRoute(editingContract.value.id).url, {
         onSuccess: () => {
-            isDeleteModalOpen.value = false;
             editingContract.value = null;
         },
     });
@@ -245,7 +376,7 @@ function confirmDelete() {
             <div class="flex items-center justify-between">
                 <Heading :title="t('nav.contracts')" :description="t('contracts.description')" />
 
-                <Button v-if="canCreate('contracts')" @click="openCreateModal">
+                <Button v-if="canCreate('contracts')" @click="goCreatePage">
                     <Plus class="mr-2 size-4" />
                     {{ t('contracts.create') }}
                 </Button>
@@ -307,7 +438,7 @@ function confirmDelete() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                                 v-if="canUpdate('contracts')"
-                                @click="openEditModal(row as unknown as Contract)"
+                                @click="goEditPage(row as unknown as Contract)"
                             >
                                 <Pencil class="mr-2 size-4" />
                                 {{ t('common.edit') }}
@@ -388,10 +519,9 @@ function confirmDelete() {
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <Label>{{ t('contracts.amount') }}</Label>
-                                <Input
-                                    v-model.number="form.amount"
-                                    type="number"
-                                    min="0"
+                                <CurrencyInput
+                                    v-model="form.amount"
+                                    :min="0"
                                     :disabled="form.processing"
                                 />
                                 <p v-if="form.errors.amount" class="text-sm text-destructive">
@@ -410,6 +540,92 @@ function confirmDelete() {
                                 </p>
                             </div>
                         </div>
+
+                        <!-- Assigned Contract Master -->
+                        <div class="space-y-2">
+                            <Label>{{ t('contracts.assigned_master') }}</Label>
+                            <Select
+                                v-model="form.assigned_master_user_id"
+                                :options="masterOptions"
+                                :placeholder="t('contracts.select_master')"
+                                :disabled="form.processing"
+                                clearable
+                            />
+                            <p class="text-xs text-muted-foreground">{{ t('contracts.master_hint') }}</p>
+                            <p v-if="form.errors.assigned_master_user_id" class="text-sm text-destructive">
+                                {{ form.errors.assigned_master_user_id }}
+                            </p>
+                        </div>
+
+                        <div v-if="editingContract" class="space-y-3 rounded-lg border p-4">
+                            <div class="flex items-center justify-between">
+                                <Label class="font-medium">{{ t('contracts.approvers') }}</Label>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    @click="addApproverRow"
+                                    :disabled="approverForm.processing"
+                                >
+                                    <Plus class="mr-1 size-4" />
+                                    {{ t('common.create') }}
+                                </Button>
+                            </div>
+
+                            <div
+                                v-for="(row, index) in approverForm.approvers"
+                                :key="`approver-index-row-${index}`"
+                                class="grid gap-3 rounded-md border p-3 lg:grid-cols-12"
+                            >
+                                <div class="lg:col-span-1">
+                                    <Label>Seq</Label>
+                                    <Input :model-value="row.sequence_no" disabled />
+                                </div>
+                                <div class="lg:col-span-4">
+                                    <Label>{{ t('nav.users') }}</Label>
+                                    <Select
+                                        v-model="row.user_id"
+                                        :options="approverOptions"
+                                        :placeholder="t('common.select')"
+                                        :disabled="approverForm.processing"
+                                        clearable
+                                    />
+                                </div>
+                                <div class="lg:col-span-6">
+                                    <Label>Remarks</Label>
+                                    <Input
+                                        v-model="row.remarks"
+                                        :placeholder="'Why this approver is required'"
+                                        :disabled="approverForm.processing"
+                                    />
+                                </div>
+                                <div class="flex items-end lg:col-span-1">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        :disabled="approverForm.processing || approverForm.approvers.length <= 1"
+                                        @click="removeApproverRow(index)"
+                                    >
+                                        <Trash2 class="size-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <p v-if="approverForm.errors.approvers" class="text-sm text-destructive">
+                                {{ approverForm.errors.approvers }}
+                            </p>
+
+                            <div class="flex justify-end">
+                                <Button type="button" variant="secondary" :disabled="approverForm.processing" @click="submitApprovers">
+                                    {{ approverForm.processing ? t('common.saving') : t('common.save') }} {{ t('contracts.approvers') }}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <p v-else class="text-xs text-muted-foreground">
+                            Approvers can be configured after contract is created.
+                        </p>
 
                         <!-- Term fields for progress type -->
                         <div v-if="form.cooperation_type === 'progress'" class="space-y-4 border rounded-lg p-4">
@@ -477,28 +693,40 @@ function confirmDelete() {
             </DialogContent>
         </Dialog>
 
-        <!-- Delete Confirmation Modal -->
-        <Dialog v-model:open="isDeleteModalOpen">
-            <DialogContent class="sm:max-w-[400px]">
-                <DialogHeader>
-                    <DialogTitle>{{ t('common.confirm_delete') }}</DialogTitle>
-                    <DialogDescription>
-                        {{ t('contracts.delete_confirmation', { number: editingContract?.number }) }}
-                    </DialogDescription>
-                </DialogHeader>
+        <ActionConfirmationDialog
+            v-model:open="saveConfirmation.open.value"
+            :title="saveConfirmation.title.value"
+            :description="saveConfirmation.description.value"
+            :confirm-text="saveConfirmation.confirmText.value"
+            :cancel-text="saveConfirmation.cancelText.value"
+            :destructive="saveConfirmation.destructive.value"
+            :details="saveConfirmation.details.value"
+            @confirm="saveConfirmation.confirm"
+            @cancel="saveConfirmation.cancel"
+        />
 
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        @click="isDeleteModalOpen = false"
-                    >
-                        {{ t('common.cancel') }}
-                    </Button>
-                    <Button variant="destructive" @click="confirmDelete">
-                        {{ t('common.delete') }}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <ActionConfirmationDialog
+            v-model:open="deleteConfirmation.open.value"
+            :title="deleteConfirmation.title.value"
+            :description="deleteConfirmation.description.value"
+            :confirm-text="deleteConfirmation.confirmText.value"
+            :cancel-text="deleteConfirmation.cancelText.value"
+            :destructive="deleteConfirmation.destructive.value"
+            :details="deleteConfirmation.details.value"
+            @confirm="deleteConfirmation.confirm"
+            @cancel="deleteConfirmation.cancel"
+        />
+
+        <ActionConfirmationDialog
+            v-model:open="approverConfirmation.open.value"
+            :title="approverConfirmation.title.value"
+            :description="approverConfirmation.description.value"
+            :confirm-text="approverConfirmation.confirmText.value"
+            :cancel-text="approverConfirmation.cancelText.value"
+            :destructive="approverConfirmation.destructive.value"
+            :details="approverConfirmation.details.value"
+            @confirm="approverConfirmation.confirm"
+            @cancel="approverConfirmation.cancel"
+        />
     </AppLayout>
 </template>

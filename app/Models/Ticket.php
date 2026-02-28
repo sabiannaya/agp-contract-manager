@@ -28,6 +28,13 @@ class Ticket extends Model
         'contract_id',
         'vendor_id',
         'status',
+        'amount',
+        'approval_status',
+        'submitted_at',
+        'approved_at',
+        'paid_at',
+        'reference_no',
+        'replaces_ticket_id',
         'notes',
         'is_active',
         'created_by_user_id',
@@ -42,7 +49,11 @@ class Ticket extends Model
     {
         return [
             'date' => 'date',
+            'amount' => 'decimal:2',
             'is_active' => 'boolean',
+            'submitted_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'paid_at' => 'datetime',
         ];
     }
 
@@ -69,6 +80,123 @@ class Ticket extends Model
     public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by_user_id');
+    }
+
+    /**
+     * The ticket this one replaces (re-request after rejection).
+     */
+    public function replacesTicket(): BelongsTo
+    {
+        return $this->belongsTo(Ticket::class, 'replaces_ticket_id');
+    }
+
+    /**
+     * Tickets that replaced this one.
+     */
+    public function replacedByTickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class, 'replaces_ticket_id');
+    }
+
+    /**
+     * Approval steps for this ticket.
+     */
+    public function approvalSteps(): HasMany
+    {
+        return $this->hasMany(TicketApprovalStep::class)->orderBy('sequence_no');
+    }
+
+    /**
+     * Submit ticket for approval. Snapshots contract approvers into ticket_approval_steps.
+     */
+    public function submitForApproval(): void
+    {
+        $contract = $this->contract;
+
+        if (!$contract) {
+            return;
+        }
+
+        $approvers = $contract->approvers()->with('user')->get();
+
+        // Create approval steps from contract approvers
+        foreach ($approvers as $approver) {
+            TicketApprovalStep::create([
+                'ticket_id' => $this->id,
+                'approver_user_id' => $approver->user_id,
+                'sequence_no' => $approver->sequence_no,
+                'status' => 'pending',
+            ]);
+        }
+
+        $this->update([
+            'approval_status' => 'pending',
+            'submitted_at' => now(),
+        ]);
+    }
+
+    /**
+     * Get the next pending approval step (sequence-based).
+     */
+    public function nextPendingStep(): ?TicketApprovalStep
+    {
+        return $this->approvalSteps()
+            ->where('status', 'pending')
+            ->orderBy('sequence_no')
+            ->first();
+    }
+
+    /**
+     * Check if all approvers have approved.
+     */
+    public function isFullyApproved(): bool
+    {
+        return $this->approvalSteps()->count() > 0
+            && $this->approvalSteps()->where('status', '!=', 'approved')->doesntExist();
+    }
+
+    /**
+     * Check if this ticket has been rejected.
+     */
+    public function isRejected(): bool
+    {
+        return $this->approval_status === 'rejected';
+    }
+
+    /**
+     * Mark ticket as approved (all approvers passed).
+     */
+    public function markApproved(): void
+    {
+        $this->update([
+            'approval_status' => 'approved',
+            'approved_at' => now(),
+        ]);
+    }
+
+    /**
+     * Mark ticket as rejected (terminal).
+     */
+    public function markRejected(): void
+    {
+        $this->update([
+            'approval_status' => 'rejected',
+        ]);
+    }
+
+    /**
+     * Mark ticket as paid and sync contract payment cache.
+     */
+    public function markPaid(?string $referenceNo = null): void
+    {
+        $this->update([
+            'approval_status' => 'paid',
+            'paid_at' => now(),
+            'reference_no' => $referenceNo,
+        ]);
+
+        // Sync contract payment cache
+        $this->contract?->syncPaymentCache();
     }
 
     public function getDocumentCountAttribute(): int

@@ -18,6 +18,7 @@ class Page extends Model
         'vendors',
         'contracts',
         'tickets',
+        'payment_tracker',
         'role_groups',
         'users',
     ];

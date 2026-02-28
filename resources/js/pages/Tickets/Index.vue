@@ -4,17 +4,10 @@ import { useDebounceFn } from '@vueuse/core';
 import { Eye, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -24,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import { useDateFormat } from '@/composables/useDateFormat';
 import { usePermission } from '@/composables/usePermission';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -43,6 +37,7 @@ const props = defineProps<{
 const { t } = useI18n();
 const { formatDateOnly } = useDateFormat();
 const { canCreate, canUpdate, canDelete } = usePermission();
+const deleteConfirmation = useActionConfirmation();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     { title: t('nav.tickets'), href: index().url },
@@ -85,7 +80,6 @@ const columns: DataTableColumn<Ticket>[] = [
 ];
 
 // Delete modal state
-const isDeleteModalOpen = ref(false);
 const editingTicket = ref<Ticket | null>(null);
 
 function openCreatePage() {
@@ -102,7 +96,18 @@ function openEditPage(ticket: Ticket) {
 
 function openDeleteModal(ticket: Ticket) {
     editingTicket.value = ticket;
-    isDeleteModalOpen.value = true;
+    deleteConfirmation.requestConfirmation(
+        {
+            title: t('common.confirm_delete'),
+            description: t('tickets.delete_confirmation', { number: ticket.number }),
+            confirmText: t('common.delete'),
+            destructive: true,
+            details: [
+                { label: t('tickets.number'), value: ticket.number },
+            ],
+        },
+        confirmDelete,
+    );
 }
 
 function confirmDelete() {
@@ -110,7 +115,6 @@ function confirmDelete() {
 
     router.delete(destroyRoute(editingTicket.value.id).url, {
         onSuccess: () => {
-            isDeleteModalOpen.value = false;
             editingTicket.value = null;
         },
     });
@@ -214,28 +218,16 @@ function confirmDelete() {
             </div>
         </div>
 
-        <!-- Delete Confirmation Modal -->
-        <Dialog v-model:open="isDeleteModalOpen">
-            <DialogContent class="sm:max-w-100">
-                <DialogHeader>
-                    <DialogTitle>{{ t('common.confirm_delete') }}</DialogTitle>
-                    <DialogDescription>
-                        {{ t('tickets.delete_confirmation', { number: editingTicket?.number }) }}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        @click="isDeleteModalOpen = false"
-                    >
-                        {{ t('common.cancel') }}
-                    </Button>
-                    <Button variant="destructive" @click="confirmDelete">
-                        {{ t('common.delete') }}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <ActionConfirmationDialog
+            v-model:open="deleteConfirmation.open"
+            :title="deleteConfirmation.title"
+            :description="deleteConfirmation.description"
+            :confirm-text="deleteConfirmation.confirmText"
+            :cancel-text="deleteConfirmation.cancelText"
+            :destructive="deleteConfirmation.destructive"
+            :details="deleteConfirmation.details"
+            @confirm="deleteConfirmation.confirm"
+            @cancel="deleteConfirmation.cancel"
+        />
     </AppLayout>
 </template>

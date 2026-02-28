@@ -4,18 +4,11 @@ import { useDebounceFn } from '@vueuse/core';
 import { MoreHorizontal, Pencil, Plus, Search, Shield, Trash2, Users } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -25,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import { usePermission } from '@/composables/usePermission';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { create, destroy as destroyRoute, edit, index } from '@/routes/roles';
@@ -38,6 +32,7 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const { canCreate, canUpdate, canDelete } = usePermission();
+const deleteConfirmation = useActionConfirmation();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     { title: t('nav.roles'), href: index().url },
@@ -79,12 +74,22 @@ const columns: DataTableColumn<Role>[] = [
 ];
 
 // Delete modal state
-const isDeleteModalOpen = ref(false);
 const deletingRole = ref<Role | null>(null);
 
 function openDeleteModal(role: Role) {
     deletingRole.value = role;
-    isDeleteModalOpen.value = true;
+    deleteConfirmation.requestConfirmation(
+        {
+            title: t('common.confirm_delete'),
+            description: t('roles.delete_confirmation', { name: role.name }),
+            confirmText: t('common.delete'),
+            destructive: true,
+            details: [
+                { label: t('roles.name'), value: role.name },
+            ],
+        },
+        confirmDelete,
+    );
 }
 
 function confirmDelete() {
@@ -92,7 +97,6 @@ function confirmDelete() {
 
     router.delete(destroyRoute(deletingRole.value.id).url, {
         onSuccess: () => {
-            isDeleteModalOpen.value = false;
             deletingRole.value = null;
         },
     });
@@ -211,28 +215,16 @@ function isAdminRole(role: Role): boolean {
             </div>
         </div>
 
-        <!-- Delete Confirmation Modal -->
-        <Dialog v-model:open="isDeleteModalOpen">
-            <DialogContent class="sm:max-w-[400px]">
-                <DialogHeader>
-                    <DialogTitle>{{ t('common.confirm_delete') }}</DialogTitle>
-                    <DialogDescription>
-                        {{ t('roles.delete_confirmation', { name: deletingRole?.name }) }}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        @click="isDeleteModalOpen = false"
-                    >
-                        {{ t('common.cancel') }}
-                    </Button>
-                    <Button variant="destructive" @click="confirmDelete">
-                        {{ t('common.delete') }}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <ActionConfirmationDialog
+            v-model:open="deleteConfirmation.open"
+            :title="deleteConfirmation.title"
+            :description="deleteConfirmation.description"
+            :confirm-text="deleteConfirmation.confirmText"
+            :cancel-text="deleteConfirmation.cancelText"
+            :destructive="deleteConfirmation.destructive"
+            :details="deleteConfirmation.details"
+            @confirm="deleteConfirmation.confirm"
+            @cancel="deleteConfirmation.cancel"
+        />
     </AppLayout>
 </template>

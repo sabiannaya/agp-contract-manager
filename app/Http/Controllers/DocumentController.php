@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\DocumentRequest;
 use App\Models\Document;
 use App\Models\Ticket;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +18,16 @@ class DocumentController extends Controller
         $data = $request->validated();
         $file = $request->file('file');
         $ticketId = $data['ticket_id'];
+
+        // Stakeholder gate: non-admin must be stakeholder of ticket's contract
+        $user = $request->user();
+        $ticket = Ticket::findOrFail($ticketId);
+        if (!$user->isAdmin()) {
+            $contractIds = $user->stakeholderContractIds();
+            if (!in_array($ticket->contract_id, $contractIds)) {
+                abort(403, 'You do not have access to this ticket.');
+            }
+        }
 
         // Delete existing document of same type for this ticket
         $existingDoc = Document::where('ticket_id', $ticketId)
@@ -50,6 +61,18 @@ class DocumentController extends Controller
 
     public function download(Document $document): StreamedResponse
     {
+        // Stakeholder gate
+        $user = request()->user();
+        if ($user && !$user->isAdmin()) {
+            $ticket = $document->ticket;
+            if ($ticket) {
+                $contractIds = $user->stakeholderContractIds();
+                if (!in_array($ticket->contract_id, $contractIds)) {
+                    abort(403, 'You do not have access to this document.');
+                }
+            }
+        }
+
         if (!Storage::disk('local')->exists($document->file_path)) {
             abort(404, 'Document not found.');
         }
@@ -62,6 +85,18 @@ class DocumentController extends Controller
 
     public function preview(Document $document): StreamedResponse
     {
+        // Stakeholder gate
+        $user = request()->user();
+        if ($user && !$user->isAdmin()) {
+            $ticket = $document->ticket;
+            if ($ticket) {
+                $contractIds = $user->stakeholderContractIds();
+                if (!in_array($ticket->contract_id, $contractIds)) {
+                    abort(403, 'You do not have access to this document.');
+                }
+            }
+        }
+
         if (!Storage::disk('local')->exists($document->file_path)) {
             abort(404, 'Document not found.');
         }
@@ -75,6 +110,18 @@ class DocumentController extends Controller
 
     public function destroy(Document $document): RedirectResponse
     {
+        // Stakeholder gate
+        $user = request()->user();
+        if ($user && !$user->isAdmin()) {
+            $ticket = $document->ticket;
+            if ($ticket) {
+                $contractIds = $user->stakeholderContractIds();
+                if (!in_array($ticket->contract_id, $contractIds)) {
+                    abort(403, 'You do not have access to this document.');
+                }
+            }
+        }
+
         $ticketId = $document->ticket_id;
 
         $document->delete();
@@ -93,6 +140,15 @@ class DocumentController extends Controller
      */
     public function uploadMultiple(Request $request, Ticket $ticket): RedirectResponse
     {
+        // Stakeholder gate
+        $user = $request->user();
+        if (!$user->isAdmin()) {
+            $contractIds = $user->stakeholderContractIds();
+            if (!in_array($ticket->contract_id, $contractIds)) {
+                abort(403, 'You do not have access to this ticket.');
+            }
+        }
+
         $request->validate([
             'documents' => ['required', 'array'],
             'documents.*.type' => ['required', 'in:' . implode(',', Document::TYPES)],

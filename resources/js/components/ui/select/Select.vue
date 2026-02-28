@@ -61,26 +61,43 @@ function handleClear() {
     searchQuery.value = '';
 }
 
+function handleOpenChange(nextOpen: boolean) {
+    if (props.disabled) {
+        open.value = false;
+        return;
+    }
+
+    open.value = nextOpen;
+}
+
 watch(open, (isOpen) => {
     if (!isOpen) {
         searchQuery.value = '';
+    }
+});
+
+watch(() => props.disabled, (isDisabled) => {
+    if (isDisabled) {
+        open.value = false;
     }
 });
 </script>
 
 <template>
     <ComboboxRoot
-        v-model:open="open"
+        :open="open"
+        @update:open="handleOpenChange"
         :disabled="disabled"
         :class="cn('relative w-full', props.class)"
     >
         <ComboboxAnchor
+            @click="!disabled && (open = true)"
             :class="
                 cn(
                     'flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs',
                     'border-input dark:bg-input/30',
                     'focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]',
-                    disabled && 'cursor-not-allowed opacity-50',
+                    disabled && 'pointer-events-none cursor-not-allowed opacity-50',
                 )
             "
         >
@@ -95,18 +112,18 @@ watch(open, (isOpen) => {
                         !selectedOption && 'text-muted-foreground',
                     )
                 "
-                @focus="open = true"
             />
             <div class="flex items-center gap-1">
                 <button
                     v-if="clearable && selectedOption"
                     type="button"
+                    :disabled="disabled"
                     class="text-muted-foreground hover:text-foreground"
                     @click.stop="handleClear"
                 >
                     <X class="size-4" />
                 </button>
-                <ComboboxTrigger class="text-muted-foreground">
+                <ComboboxTrigger :disabled="disabled" class="text-muted-foreground">
                     <ChevronDown class="size-4" />
                 </ComboboxTrigger>
             </div>

@@ -3,11 +3,13 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Save, Shield, User as UserIcon } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index, updateRoles } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
@@ -20,6 +22,7 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+const saveConfirmation = useActionConfirmation();
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => [
     { title: t('nav.users'), href: index().url },
@@ -48,8 +51,23 @@ function isRoleSelected(roleId: number): boolean {
     return form.roles.includes(roleId);
 }
 
-function submitForm() {
+function executeSubmitForm() {
     form.put(updateRoles(props.user).url);
+}
+
+function submitForm() {
+    saveConfirmation.requestConfirmation(
+        {
+            title: t('common.update'),
+            description: t('users.edit_roles_description'),
+            confirmText: t('common.save'),
+            details: [
+                { label: 'User', value: props.user.name },
+                { label: 'Assigned Roles', value: String(form.roles.length) },
+            ],
+        },
+        executeSubmitForm,
+    );
 }
 </script>
 
@@ -157,6 +175,18 @@ function submitForm() {
                     </Button>
                 </div>
             </form>
+
+            <ActionConfirmationDialog
+                v-model:open="saveConfirmation.open"
+                :title="saveConfirmation.title"
+                :description="saveConfirmation.description"
+                :confirm-text="saveConfirmation.confirmText"
+                :cancel-text="saveConfirmation.cancelText"
+                :destructive="saveConfirmation.destructive"
+                :details="saveConfirmation.details"
+                @confirm="saveConfirmation.confirm"
+                @cancel="saveConfirmation.cancel"
+            />
         </div>
     </AppLayout>
 </template>

@@ -1,27 +1,22 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Eye, FileText, Save, Trash2, Upload } from 'lucide-vue-next';
+import { ArrowLeft, DollarSign, Eye, FileText, Save, Trash2, Upload } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { FileUpload } from '@/components/ui/file-upload';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Textarea } from '@/components/ui/textarea';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import { useToast } from '@/composables/useToast';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { destroy as destroyDocument, preview as previewDocument, store as storeDocument } from '@/routes/documents';
@@ -45,6 +40,8 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const toast = useToast();
+const saveConfirmation = useActionConfirmation();
+const deleteConfirmation = useActionConfirmation();
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => [
     { title: t('nav.tickets'), href: index().url },
@@ -54,7 +51,7 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => [
 
 // Filter contracts by vendor
 const filteredContracts = computed(() => {
-    if (!form.vendor_id) return props.contracts;
+    if (!form.vendor_id) return [];
     return props.contracts.filter((c) => c.vendor_id === form.vendor_id);
 });
 
@@ -67,17 +64,47 @@ const contractOptions = computed(() =>
     filteredContracts.value.map((c) => ({ value: c.id, label: c.number })),
 );
 
+const isContractSelectDisabled = computed(() => form.processing || !form.vendor_id);
+
+function normalizeDateForInput(value: string | null | undefined): string {
+    if (!value) return '';
+    return String(value).slice(0, 10);
+}
+
 // Form state
 const form = useForm<TicketForm>({
-    date: props.ticket.date,
+    date: normalizeDateForInput(props.ticket.date),
     contract_id: props.ticket.contract_id,
     vendor_id: props.ticket.vendor_id,
+    amount: props.ticket.amount,
+    reference_no: props.ticket.reference_no ?? '',
+    replaces_ticket_id: props.ticket.replaces_ticket_id,
     notes: props.ticket.notes ?? '',
     is_active: props.ticket.is_active,
 });
 
+// Selected contract for showing balance info
+const selectedContract = computed(() => {
+    if (!form.contract_id) return null;
+    return props.contracts.find((c) => c.id === form.contract_id) ?? null;
+});
+
+function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
+}
+
 // When vendor changes, reset contract if it doesn't belong to the vendor
 watch(() => form.vendor_id, (vendorId) => {
+    if (!vendorId) {
+        form.contract_id = null;
+        return;
+    }
+
     if (vendorId && form.contract_id) {
         const contract = props.contracts.find((c) => c.id === form.contract_id);
         if (contract && contract.vendor_id !== vendorId) {
@@ -100,7 +127,7 @@ function goBack() {
     router.get(show(props.ticket.id).url);
 }
 
-function submitForm() {
+function executeSubmitForm() {
     form.put(update(props.ticket.id).url, {
         preserveScroll: true,
         onSuccess: () => {
@@ -113,13 +140,29 @@ function submitForm() {
     });
 }
 
+function submitForm() {
+    saveConfirmation.requestConfirmation(
+        {
+            title: t('common.update'),
+            description: t('tickets.edit_description'),
+            confirmText: t('common.save'),
+            details: [
+                { label: t('tickets.number'), value: props.ticket.number },
+                { label: t('tickets.vendor'), value: vendorOptions.value.find((v) => v.value === form.vendor_id)?.label ?? '-' },
+                { label: t('tickets.contract'), value: contractOptions.value.find((c) => c.value === form.contract_id)?.label ?? '-' },
+                { label: t('payment_tracker.amount'), value: form.amount ? formatCurrency(form.amount) : '-' },
+            ],
+        },
+        executeSubmitForm,
+    );
+}
+
 // Document management
 const documentFiles = ref<Record<DocumentType, File | null>>(
     Object.fromEntries(DOCUMENT_TYPES.map((t) => [t, null])) as Record<DocumentType, File | null>,
 );
 const uploadingDoc = ref<DocumentType | null>(null);
 const deletingDoc = ref<number | null>(null);
-const deleteConfirmOpen = ref(false);
 const docToDelete = ref<Document | null>(null);
 
 // Get current documents from ticket
@@ -180,7 +223,19 @@ async function handleFileUpload(type: DocumentType, file: File | null) {
 
 function openDeleteConfirm(doc: Document) {
     docToDelete.value = doc;
-    deleteConfirmOpen.value = true;
+    deleteConfirmation.requestConfirmation(
+        {
+            title: t('common.confirm_delete'),
+            description: t('documents.delete_confirmation', { name: doc.original_name }),
+            confirmText: t('common.delete'),
+            destructive: true,
+            details: [
+                { label: 'File', value: doc.original_name },
+                { label: 'Type', value: t(`documents.${doc.type}`) },
+            ],
+        },
+        confirmDeleteDocument,
+    );
 }
 
 function confirmDeleteDocument() {
@@ -192,7 +247,6 @@ function confirmDeleteDocument() {
         preserveScroll: true,
         onSuccess: () => {
             toast.success(t('documents.deleted_successfully'));
-            deleteConfirmOpen.value = false;
             docToDelete.value = null;
             deletingDoc.value = null;
         },
@@ -274,9 +328,10 @@ function confirmDeleteDocument() {
                                 <Label>{{ t('tickets.contract') }}</Label>
                                 <Select
                                     v-model="form.contract_id"
+                                    key="ticket-edit-contract-select"
                                     :options="contractOptions"
-                                    :placeholder="t('tickets.select_contract')"
-                                    :disabled="form.processing"
+                                    :placeholder="form.vendor_id ? t('tickets.select_contract') : t('tickets.select_vendor')"
+                                    :disabled="isContractSelectDisabled"
                                     clearable
                                 />
                                 <p v-if="form.errors.contract_id" class="text-sm text-destructive">
@@ -307,6 +362,68 @@ function confirmDeleteDocument() {
                                 <Label for="is_active" class="font-normal">
                                     {{ t('common.active') }}
                                 </Label>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Payment Amount Card -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <DollarSign class="size-5" />
+                            {{ t('tickets.payment_amount') }}
+                        </CardTitle>
+                        <CardDescription>
+                            {{ t('tickets.payment_amount_description') }}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div class="space-y-2">
+                                <Label>{{ t('payment_tracker.amount') }}</Label>
+                                <CurrencyInput
+                                    v-model="form.amount"
+                                    :min="0"
+                                    :disabled="form.processing || ticket.approval_status !== 'draft'"
+                                />
+                                <p v-if="ticket.approval_status !== 'draft'" class="text-xs text-muted-foreground">
+                                    {{ t('tickets.amount_locked') }}
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    {{ t('tickets.amount_hint') }}
+                                </p>
+                                <p v-if="form.errors.amount" class="text-sm text-destructive">
+                                    {{ form.errors.amount }}
+                                </p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label>{{ t('payment_tracker.approval_status') }}</Label>
+                                <Badge :variant="ticket.approval_status === 'paid' ? 'default' : ticket.approval_status === 'rejected' ? 'destructive' : 'secondary'" class="mt-1">
+                                    {{ t(`payment_tracker.statuses.${ticket.approval_status}`) }}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <!-- Contract Balance Info -->
+                        <div v-if="selectedContract" class="rounded-lg border bg-muted/30 p-4">
+                            <p class="mb-3 text-sm font-medium">{{ t('payment_tracker.contract_balance') }}</p>
+                            <div class="grid gap-3 sm:grid-cols-3">
+                                <div>
+                                    <p class="text-muted-foreground text-xs">{{ t('contracts.amount') }}</p>
+                                    <p class="font-semibold">{{ formatCurrency(selectedContract.amount) }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-muted-foreground text-xs">{{ t('contracts.total_paid') }}</p>
+                                    <p class="font-semibold text-green-600">{{ formatCurrency(selectedContract.payment_total_paid ?? 0) }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-muted-foreground text-xs">{{ t('contracts.outstanding_balance') }}</p>
+                                    <p class="font-semibold text-orange-600">{{ formatCurrency(selectedContract.payment_balance ?? selectedContract.amount) }}</p>
+                                </div>
+                            </div>
+                            <div v-if="form.amount && form.amount > (selectedContract.payment_balance ?? selectedContract.amount)" class="mt-3">
+                                <Badge variant="destructive">{{ t('tickets.amount_exceeds_balance') }}</Badge>
                             </div>
                         </div>
                     </CardContent>
@@ -420,34 +537,28 @@ function confirmDeleteDocument() {
             </form>
         </div>
 
-        <!-- Delete Document Confirmation -->
-        <Dialog v-model:open="deleteConfirmOpen">
-            <DialogContent class="sm:max-w-100">
-                <DialogHeader>
-                    <DialogTitle>{{ t('common.confirm_delete') }}</DialogTitle>
-                    <DialogDescription>
-                        {{ t('documents.delete_confirmation', { name: docToDelete?.original_name }) }}
-                    </DialogDescription>
-                </DialogHeader>
+        <ActionConfirmationDialog
+            v-model:open="saveConfirmation.open"
+            :title="saveConfirmation.title"
+            :description="saveConfirmation.description"
+            :confirm-text="saveConfirmation.confirmText"
+            :cancel-text="saveConfirmation.cancelText"
+            :destructive="saveConfirmation.destructive"
+            :details="saveConfirmation.details"
+            @confirm="saveConfirmation.confirm"
+            @cancel="saveConfirmation.cancel"
+        />
 
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        @click="deleteConfirmOpen = false"
-                        :disabled="deletingDoc !== null"
-                    >
-                        {{ t('common.cancel') }}
-                    </Button>
-                    <Button
-                        variant="destructive"
-                        @click="confirmDeleteDocument"
-                        :disabled="deletingDoc !== null"
-                    >
-                        <Trash2 class="mr-2 size-4" />
-                        {{ t('common.delete') }}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <ActionConfirmationDialog
+            v-model:open="deleteConfirmation.open"
+            :title="deleteConfirmation.title"
+            :description="deleteConfirmation.description"
+            :confirm-text="deleteConfirmation.confirmText"
+            :cancel-text="deleteConfirmation.cancelText"
+            :destructive="deleteConfirmation.destructive"
+            :details="deleteConfirmation.details"
+            @confirm="deleteConfirmation.confirm"
+            @cancel="deleteConfirmation.cancel"
+        />
     </AppLayout>
 </template>

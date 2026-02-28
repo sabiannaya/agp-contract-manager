@@ -15,9 +15,17 @@ class TicketController extends Controller
 {
     public function index(Request $request): Response
     {
+        $user = $request->user();
+
         $query = Ticket::query()
             ->with(['vendor:id,code,name', 'contract:id,number'])
             ->withCount('documents');
+
+        // Non-admin users only see tickets for their contracts
+        if (!$user->isAdmin()) {
+            $contractIds = $user->stakeholderContractIds();
+            $query->whereIn('contract_id', $contractIds);
+        }
 
         // Search functionality
         if ($search = $request->get('search')) {
@@ -79,16 +87,23 @@ class TicketController extends Controller
 
     public function create(): Response
     {
+        $user = request()->user();
+
         $vendors = Vendor::where('is_active', true)
             ->select('id', 'code', 'name')
             ->orderBy('name')
             ->get();
 
-        $contracts = Contract::where('is_active', true)
+        $contractQuery = Contract::where('is_active', true)
             ->with('vendor:id,code,name')
-            ->select('id', 'number', 'vendor_id')
-            ->orderBy('number')
-            ->get();
+            ->select('id', 'number', 'vendor_id', 'amount', 'cooperation_type', 'payment_total_paid', 'payment_balance');
+
+        // Non-admin users only see their contracts
+        if (!$user->isAdmin()) {
+            $contractQuery->forStakeholder($user);
+        }
+
+        $contracts = $contractQuery->orderBy('number')->get();
 
         return Inertia::render('Tickets/Create', [
             'vendors' => $vendors,
@@ -112,6 +127,16 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket): Response
     {
+        $user = request()->user();
+
+        // Non-admin users must be a stakeholder of the ticket's contract
+        if (!$user->isAdmin()) {
+            $contractIds = $user->stakeholderContractIds();
+            if (!in_array($ticket->contract_id, $contractIds)) {
+                abort(403, 'You do not have access to this ticket.');
+            }
+        }
+
         $ticket->load([
             'vendor',
             'contract',
@@ -127,6 +152,16 @@ class TicketController extends Controller
 
     public function edit(Ticket $ticket): Response
     {
+        $user = request()->user();
+
+        // Non-admin users must be a stakeholder of the ticket's contract
+        if (!$user->isAdmin()) {
+            $contractIds = $user->stakeholderContractIds();
+            if (!in_array($ticket->contract_id, $contractIds)) {
+                abort(403, 'You do not have access to this ticket.');
+            }
+        }
+
         $ticket->load(['documents']);
 
         $vendors = Vendor::where('is_active', true)
@@ -134,11 +169,16 @@ class TicketController extends Controller
             ->orderBy('name')
             ->get();
 
-        $contracts = Contract::where('is_active', true)
+        $contractQuery = Contract::where('is_active', true)
             ->with('vendor:id,code,name')
-            ->select('id', 'number', 'vendor_id')
-            ->orderBy('number')
-            ->get();
+            ->select('id', 'number', 'vendor_id', 'amount', 'cooperation_type', 'payment_total_paid', 'payment_balance');
+
+        // Non-admin users only see their contracts
+        if (!$user->isAdmin()) {
+            $contractQuery->forStakeholder($user);
+        }
+
+        $contracts = $contractQuery->orderBy('number')->get();
 
         return Inertia::render('Tickets/Edit', [
             'ticket' => $ticket,
@@ -149,6 +189,16 @@ class TicketController extends Controller
 
     public function update(TicketRequest $request, Ticket $ticket): RedirectResponse
     {
+        $user = $request->user();
+
+        // Non-admin users must be a stakeholder of the ticket's contract
+        if (!$user->isAdmin()) {
+            $contractIds = $user->stakeholderContractIds();
+            if (!in_array($ticket->contract_id, $contractIds)) {
+                abort(403, 'You do not have access to this ticket.');
+            }
+        }
+
         $data = $request->validated();
         $data['updated_by_user_id'] = $request->user()?->id;
 
@@ -158,12 +208,22 @@ class TicketController extends Controller
         $ticket->update($data);
 
         return redirect()
-            ->route('tickets.index')
+            ->back()
             ->with('success', 'Ticket updated successfully.');
     }
 
     public function destroy(Ticket $ticket): RedirectResponse
     {
+        $user = request()->user();
+
+        // Non-admin users must be a stakeholder of the ticket's contract
+        if (!$user->isAdmin()) {
+            $contractIds = $user->stakeholderContractIds();
+            if (!in_array($ticket->contract_id, $contractIds)) {
+                abort(403, 'You do not have access to this ticket.');
+            }
+        }
+
         $ticket->delete();
 
         return redirect()
@@ -176,6 +236,8 @@ class TicketController extends Controller
      */
     public function view(Request $request): Response
     {
+        $user = $request->user();
+
         $query = Ticket::query()
             ->with([
                 'vendor:id,code,name',
@@ -183,6 +245,12 @@ class TicketController extends Controller
                 'documents:id,ticket_id,type,original_name',
             ])
             ->withCount('documents');
+
+        // Non-admin users only see tickets for their contracts
+        if (!$user->isAdmin()) {
+            $contractIds = $user->stakeholderContractIds();
+            $query->whereIn('contract_id', $contractIds);
+        }
 
         // Search functionality
         if ($search = $request->get('search')) {

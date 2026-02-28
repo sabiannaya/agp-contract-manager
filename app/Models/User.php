@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Illuminate\Database\Eloquent\Builder;
 
 class User extends Authenticatable
 {
@@ -171,5 +172,48 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Role::class, 'user_role')
             ->withTimestamps();
+    }
+
+    /**
+     * Scope: users eligible to be contract masters or approvers.
+     * Privilege-based: users who have update privilege on the contracts page.
+     */
+    public function scopeEligibleApprovers(Builder $query): Builder
+    {
+        return $query->whereHas('roleGroups', function ($rgQuery) {
+            $rgQuery->where('is_active', true)
+                ->whereHas('privileges', function ($privQuery) {
+                    $privQuery->whereHas('page', function ($pageQuery) {
+                        $pageQuery->where('slug', 'contracts')
+                            ->where('is_active', true);
+                    })->where('__update', true);
+                });
+        });
+    }
+
+    /**
+     * Check if the user belongs to the system Admin role group.
+     * Admin users bypass contract/ticket stakeholder scoping.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->roleGroups()
+            ->where('is_active', true)
+            ->where('is_system', true)
+            ->where('name', 'Admin')
+            ->exists();
+    }
+
+    /**
+     * Get IDs of contracts where the user is a stakeholder
+     * (creator, assigned master, or configured approver).
+     */
+    public function stakeholderContractIds(): array
+    {
+        $asCreator = Contract::where('created_by_user_id', $this->id)->pluck('id');
+        $asMaster = Contract::where('assigned_master_user_id', $this->id)->pluck('id');
+        $asApprover = ContractApprover::where('user_id', $this->id)->pluck('contract_id');
+
+        return $asCreator->merge($asMaster)->merge($asApprover)->unique()->values()->all();
     }
 }

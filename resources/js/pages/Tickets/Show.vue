@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ArrowLeft, Calendar, Download, Eye, FileText, Pencil, User } from 'lucide-vue-next';
+import { ArrowLeft, Calendar, DollarSign, Download, Eye, FileText, Pencil, User } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +60,30 @@ function handlePreview(documentId: number) {
 
 function getDocumentTypeLabel(type: string): string {
     return t(`documents.types.${type}`);
+}
+
+function formatCurrency(amount: number | null | undefined): string {
+    if (amount == null) return '-';
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
+}
+
+function viewPaymentTracker() {
+    router.get(`/payment-tracker/${props.ticket.id}`);
+}
+
+function approvalStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+    switch (status) {
+        case 'paid': return 'default';
+        case 'approved': return 'default';
+        case 'pending': return 'secondary';
+        case 'rejected': return 'destructive';
+        default: return 'outline';
+    }
 }
 </script>
 
@@ -150,6 +174,51 @@ function getDocumentTypeLabel(type: string): string {
                     </CardContent>
                 </Card>
             </div>
+
+            <!-- Payment Information -->
+            <Card>
+                <CardHeader>
+                    <div class="flex items-center justify-between">
+                        <CardTitle class="flex items-center gap-2">
+                            <DollarSign class="size-5" />
+                            {{ t('tickets.payment_info') }}
+                        </CardTitle>
+                        <Button variant="outline" size="sm" @click="viewPaymentTracker">
+                            {{ t('tickets.view_in_payment_tracker') }}
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                            <p class="text-muted-foreground text-sm">{{ t('payment_tracker.amount') }}</p>
+                            <p class="text-lg font-semibold">{{ formatCurrency(ticket.amount) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-muted-foreground text-sm">{{ t('payment_tracker.approval_status') }}</p>
+                            <Badge :variant="approvalStatusVariant(ticket.approval_status)" class="mt-1">
+                                {{ t(`payment_tracker.statuses.${ticket.approval_status}`) }}
+                            </Badge>
+                        </div>
+                        <div v-if="ticket.reference_no">
+                            <p class="text-muted-foreground text-sm">{{ t('payment_tracker.reference_no') }}</p>
+                            <p class="font-medium">{{ ticket.reference_no }}</p>
+                        </div>
+                        <div v-if="ticket.paid_at">
+                            <p class="text-muted-foreground text-sm">{{ t('tickets.paid_at') }}</p>
+                            <p class="font-medium">{{ formatDateTime(ticket.paid_at) }}</p>
+                        </div>
+                        <div v-if="ticket.submitted_at">
+                            <p class="text-muted-foreground text-sm">{{ t('tickets.submitted_at') }}</p>
+                            <p class="font-medium">{{ formatDateTime(ticket.submitted_at) }}</p>
+                        </div>
+                        <div v-if="ticket.approved_at">
+                            <p class="text-muted-foreground text-sm">{{ t('tickets.approved_at') }}</p>
+                            <p class="font-medium">{{ formatDateTime(ticket.approved_at) }}</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             <!-- Documents -->
             <Card>

@@ -35,24 +35,33 @@ class DatabaseSeeder extends Seeder
         $this->command->info('📄 Seeding contracts...');
         $this->call(ContractSeeder::class);
 
-        $this->command->info('🎫 Seeding tickets...');
+        $this->command->info('🎫 Seeding tickets (payment submissions)...');
         $this->call(TicketSeeder::class);
 
         $this->command->info('📎 Seeding documents...');
         $this->call(DocumentSeeder::class);
 
+        $this->command->info('💳 Seeding payment tracker (approvers, approval steps, payment cache)...');
+        $this->call(PaymentTrackerSeeder::class);
+
         $this->command->newLine();
         $this->command->info('✅ Database seeding completed successfully!');
         $this->command->newLine();
         $this->command->table(
-            ['Role', 'Email', 'Password'],
+            ['Role Group', 'Email', 'Password', 'Notes'],
             [
-                ['Admin', 'admin@pln.co.id', 'password'],
-                ['Editor', 'supervisor@pln.co.id', 'password'],
-                ['Editor', 'staff@pln.co.id', 'password'],
-                ['Viewer', 'manager@pln.co.id', 'password'],
-                ['Viewer', 'auditor@pln.co.id', 'password'],
-                ['Editor', 'kontrak@pln.co.id', 'password'],
+                ['Admin',    'admin@pln.co.id',      'password', 'Full access · Contract master on several contracts'],
+                ['Operator', 'supervisor@pln.co.id',  'password', 'Approver on most contracts'],
+                ['Operator', 'staff@pln.co.id',       'password', 'Operator'],
+                ['Viewer',   'manager@pln.co.id',     'password', 'Final-step approver · Read-only pages'],
+                ['Viewer',   'auditor@pln.co.id',     'password', 'Read-only'],
+                ['Operator', 'kontrak@pln.co.id',     'password', 'Contract staff · Approver · Creates payments'],
+                ['Operator', 'john@pln.co.id',        'password', 'Operator · Approver candidate'],
+                ['Operator', 'ken@pln.co.id',         'password', 'Operator · Approver candidate'],
+                ['Operator', 'ray@pln.co.id',         'password', 'Operator · Non-stakeholder scenario'],
+                ['Operator', 'sinta@pln.co.id',       'password', 'Operator · Procurement reviewer'],
+                ['Viewer',   'rudi@pln.co.id',        'password', 'Viewer · Finance observer'],
+                ['Viewer',   'nina@pln.co.id',        'password', 'Viewer · QA observer'],
             ]
         );
         $this->command->info('💡 You can login with any of the above credentials.');

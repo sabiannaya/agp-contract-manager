@@ -28,6 +28,7 @@ class ContractRequest extends FormRequest
             'amount' => ['required', 'numeric', 'min:0', 'max:999999999999999999.99'],
             'cooperation_type' => ['required', Rule::in(['progress', 'routine'])],
             'is_active' => ['boolean'],
+            'assigned_master_user_id' => ['nullable', 'exists:users,id'],
         ];
 
         // Add conditional rules for progress type
@@ -75,6 +76,29 @@ class ContractRequest extends FormRequest
                     $validator->errors()->add(
                         'term_percentages',
                         "Total percentage must equal 100%. Current total: {$total}%"
+                    );
+                }
+            }
+
+            // Validate assigned master is privilege-eligible
+            if ($masterId = $this->input('assigned_master_user_id')) {
+                $eligible = \App\Models\User::eligibleApprovers()
+                    ->where('id', $masterId)
+                    ->exists();
+
+                if (!$eligible) {
+                    $validator->errors()->add(
+                        'assigned_master_user_id',
+                        'The assigned contract master must have contract update privileges.'
+                    );
+                }
+
+                // Assigned master cannot be the creator
+                $creatorId = $this->route('contract')?->created_by_user_id ?? $this->user()?->id;
+                if ((int) $masterId === (int) $creatorId) {
+                    $validator->errors()->add(
+                        'assigned_master_user_id',
+                        'The assigned contract master cannot be the same as the contract creator.'
                     );
                 }
             }

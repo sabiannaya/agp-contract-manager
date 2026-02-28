@@ -17,8 +17,9 @@ class RoleGroupSeeder extends Seeder
             ['slug' => 'vendors', 'name' => 'Vendors', 'description' => 'Vendor management', 'is_active' => true, 'sort_order' => 2],
             ['slug' => 'contracts', 'name' => 'Contracts', 'description' => 'Contract management', 'is_active' => true, 'sort_order' => 3],
             ['slug' => 'tickets', 'name' => 'Tickets', 'description' => 'Ticket/work order management', 'is_active' => true, 'sort_order' => 4],
-            ['slug' => 'role_groups', 'name' => 'Role Groups', 'description' => 'Role group management', 'is_active' => true, 'sort_order' => 5],
-            ['slug' => 'users', 'name' => 'Users', 'description' => 'User management', 'is_active' => true, 'sort_order' => 6],
+            ['slug' => 'payment_tracker', 'name' => 'Payment Tracker', 'description' => 'Payment tracking and approvals', 'is_active' => true, 'sort_order' => 5],
+            ['slug' => 'role_groups', 'name' => 'Role Groups', 'description' => 'Role group management', 'is_active' => true, 'sort_order' => 6],
+            ['slug' => 'users', 'name' => 'Users', 'description' => 'User management', 'is_active' => true, 'sort_order' => 7],
         ];
 
         $pages = [];
@@ -86,7 +87,7 @@ class RoleGroupSeeder extends Seeder
         );
 
         // Grant privileges to Operator
-        $operatorPages = ['dashboard', 'vendors', 'contracts', 'tickets'];
+        $operatorPages = ['dashboard', 'vendors', 'contracts', 'tickets', 'payment_tracker'];
         foreach ($pages as $page) {
             if (in_array($page->slug, $operatorPages)) {
                 $operatorGroup->privileges()->updateOrCreate(
@@ -109,6 +110,12 @@ class RoleGroupSeeder extends Seeder
             'manager@pln.co.id' => 'Viewer',
             'auditor@pln.co.id' => 'Viewer',
             'kontrak@pln.co.id' => 'Operator',
+            'john@pln.co.id' => 'Operator',
+            'ken@pln.co.id' => 'Operator',
+            'ray@pln.co.id' => 'Operator',
+            'sinta@pln.co.id' => 'Operator',
+            'rudi@pln.co.id' => 'Viewer',
+            'nina@pln.co.id' => 'Viewer',
         ];
 
         foreach ($userRoleAssignments as $email => $groupName) {

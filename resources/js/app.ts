@@ -19,8 +19,7 @@ createInertiaApp({
         // Set locale from server
         const pageProps = props.initialPage.props as { locale?: string };
         if (pageProps.locale && (pageProps.locale === 'id' || pageProps.locale === 'en')) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (i18n.global.locale as any).value = pageProps.locale;
+            (i18n.global as { locale: { value: 'id' | 'en' } }).locale.value = pageProps.locale;
         }
 
         createApp({ render: () => h(App, props) })

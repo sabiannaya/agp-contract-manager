@@ -164,10 +164,14 @@ class DocumentSeeder extends Seeder
                     'original_name' => $doc['name'],
                     'file_path' => 'documents/' . date('Y/m') . '/' . uniqid() . '_' . $doc['name'],
                     'mime_type' => 'application/pdf',
-                    'file_size' => rand(100000, 5000000), // Random file size between 100KB and 5MB
+                    'file_size' => rand(100000, 5000000),
                     'uploaded_by_user_id' => $uploader?->id
                 ]);
             }
+
+            // Update ticket status based on document completeness
+            $ticket = Ticket::find($ticketDocs['ticket_id']);
+            $ticket?->updateStatus();
         }
     }
 }

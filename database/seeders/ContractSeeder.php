@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Contract;
+use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Database\Seeder;
 
@@ -10,6 +11,10 @@ class ContractSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * Contracts now include:
+     *  - created_by_user_id  → the contract creator (also acts as contract master)
+     *  - assigned_master_user_id → an optional secondary master who can also manage payments
      */
     public function run(): void
     {
@@ -20,8 +25,13 @@ class ContractSeeder extends Seeder
             return;
         }
 
+        $admin      = User::where('email', 'admin@pln.co.id')->first();
+        $supervisor = User::where('email', 'supervisor@pln.co.id')->first();
+        $kontrak    = User::where('email', 'kontrak@pln.co.id')->first();
+        $staff      = User::where('email', 'staff@pln.co.id')->first();
+
         $contracts = [
-            // Routine contracts
+            // ── Routine contracts ────────────────────────────────
             [
                 'number' => 'CTR/2024/001',
                 'date' => '2024-01-10',
@@ -31,6 +41,8 @@ class ContractSeeder extends Seeder
                 'term_count' => null,
                 'term_percentages' => null,
                 'is_active' => true,
+                'created_by_user_id' => $admin->id,
+                'assigned_master_user_id' => $supervisor->id,
             ],
             [
                 'number' => 'CTR/2024/002',
@@ -41,6 +53,8 @@ class ContractSeeder extends Seeder
                 'term_count' => null,
                 'term_percentages' => null,
                 'is_active' => true,
+                'created_by_user_id' => $supervisor->id,
+                'assigned_master_user_id' => null,
             ],
             [
                 'number' => 'CTR/2024/003',
@@ -51,9 +65,11 @@ class ContractSeeder extends Seeder
                 'term_count' => null,
                 'term_percentages' => null,
                 'is_active' => true,
+                'created_by_user_id' => $kontrak->id,
+                'assigned_master_user_id' => $admin->id,
             ],
-            
-            // Progress-based contracts with term percentages
+
+            // ── Progress-based contracts with term percentages ───
             [
                 'number' => 'CTR/2024/004',
                 'date' => '2024-04-12',
@@ -61,8 +77,10 @@ class ContractSeeder extends Seeder
                 'amount' => 500000000,
                 'cooperation_type' => 'progress',
                 'term_count' => 5,
-                'term_percentages' => [20, 20, 20, 20, 20], // 5 terms, equal distribution
+                'term_percentages' => [20, 20, 20, 20, 20],
                 'is_active' => true,
+                'created_by_user_id' => $admin->id,
+                'assigned_master_user_id' => $kontrak->id,
             ],
             [
                 'number' => 'CTR/2024/005',
@@ -71,8 +89,10 @@ class ContractSeeder extends Seeder
                 'amount' => 350000000,
                 'cooperation_type' => 'progress',
                 'term_count' => 4,
-                'term_percentages' => [30, 30, 20, 20], // 4 terms, front-loaded
+                'term_percentages' => [30, 30, 20, 20],
                 'is_active' => true,
+                'created_by_user_id' => $supervisor->id,
+                'assigned_master_user_id' => $admin->id,
             ],
             [
                 'number' => 'CTR/2024/006',
@@ -83,6 +103,8 @@ class ContractSeeder extends Seeder
                 'term_count' => null,
                 'term_percentages' => null,
                 'is_active' => true,
+                'created_by_user_id' => $kontrak->id,
+                'assigned_master_user_id' => $supervisor->id,
             ],
             [
                 'number' => 'CTR/2024/007',
@@ -91,8 +113,10 @@ class ContractSeeder extends Seeder
                 'amount' => 420000000,
                 'cooperation_type' => 'progress',
                 'term_count' => 6,
-                'term_percentages' => [15, 15, 20, 20, 15, 15], // 6 terms, balanced
+                'term_percentages' => [15, 15, 20, 20, 15, 15],
                 'is_active' => true,
+                'created_by_user_id' => $admin->id,
+                'assigned_master_user_id' => null,
             ],
             [
                 'number' => 'CTR/2024/008',
@@ -103,6 +127,8 @@ class ContractSeeder extends Seeder
                 'term_count' => null,
                 'term_percentages' => null,
                 'is_active' => true,
+                'created_by_user_id' => $staff->id,
+                'assigned_master_user_id' => $admin->id,
             ],
             [
                 'number' => 'CTR/2024/009',
@@ -111,8 +137,10 @@ class ContractSeeder extends Seeder
                 'amount' => 280000000,
                 'cooperation_type' => 'progress',
                 'term_count' => 3,
-                'term_percentages' => [40, 30, 30], // 3 terms, front-loaded
+                'term_percentages' => [40, 30, 30],
                 'is_active' => true,
+                'created_by_user_id' => $supervisor->id,
+                'assigned_master_user_id' => $kontrak->id,
             ],
             [
                 'number' => 'CTR/2024/010',
@@ -123,6 +151,8 @@ class ContractSeeder extends Seeder
                 'term_count' => null,
                 'term_percentages' => null,
                 'is_active' => true,
+                'created_by_user_id' => $kontrak->id,
+                'assigned_master_user_id' => null,
             ],
             [
                 'number' => 'CTR/2024/011',
@@ -131,8 +161,10 @@ class ContractSeeder extends Seeder
                 'amount' => 650000000,
                 'cooperation_type' => 'progress',
                 'term_count' => 8,
-                'term_percentages' => [10, 15, 15, 15, 15, 10, 10, 10], // 8 terms
+                'term_percentages' => [10, 15, 15, 15, 15, 10, 10, 10],
                 'is_active' => true,
+                'created_by_user_id' => $admin->id,
+                'assigned_master_user_id' => $supervisor->id,
             ],
             [
                 'number' => 'CTR/2024/012',
@@ -143,6 +175,8 @@ class ContractSeeder extends Seeder
                 'term_count' => null,
                 'term_percentages' => null,
                 'is_active' => true,
+                'created_by_user_id' => $supervisor->id,
+                'assigned_master_user_id' => $admin->id,
             ],
             [
                 'number' => 'CTR/2025/001',
@@ -151,8 +185,10 @@ class ContractSeeder extends Seeder
                 'amount' => 380000000,
                 'cooperation_type' => 'progress',
                 'term_count' => 4,
-                'term_percentages' => [25, 25, 25, 25], // 4 terms, equal
+                'term_percentages' => [25, 25, 25, 25],
                 'is_active' => true,
+                'created_by_user_id' => $kontrak->id,
+                'assigned_master_user_id' => $admin->id,
             ],
             [
                 'number' => 'CTR/2025/002',
@@ -163,6 +199,8 @@ class ContractSeeder extends Seeder
                 'term_count' => null,
                 'term_percentages' => null,
                 'is_active' => true,
+                'created_by_user_id' => $admin->id,
+                'assigned_master_user_id' => null,
             ],
             [
                 'number' => 'CTR/2023/099',
@@ -172,7 +210,9 @@ class ContractSeeder extends Seeder
                 'cooperation_type' => 'routine',
                 'term_count' => null,
                 'term_percentages' => null,
-                'is_active' => false, // Inactive contract
+                'is_active' => false,
+                'created_by_user_id' => $admin->id,
+                'assigned_master_user_id' => null,
             ],
         ];
 

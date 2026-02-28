@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Building2, Calendar, FileText, Pencil, User } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import { useDateFormat } from '@/composables/useDateFormat';
 import { usePermission } from '@/composables/usePermission';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -33,6 +35,7 @@ const props = defineProps<{
 const { t } = useI18n();
 const { formatDateOnly, formatDateTime } = useDateFormat();
 const { canUpdate } = usePermission();
+const saveConfirmation = useActionConfirmation();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     { title: t('nav.vendors'), href: index().url },
@@ -42,11 +45,18 @@ const breadcrumbItems: BreadcrumbItem[] = [
 // Modal state
 const isFormModalOpen = ref(false);
 
+function normalizeDate(value: string | null | undefined): string {
+    if (!value) return '';
+    if (value.includes('T')) return value.split('T')[0];
+    if (value.includes(' ')) return value.split(' ')[0];
+    return value;
+}
+
 const form = useForm<VendorForm>({
     code: props.vendor.code,
     name: props.vendor.name,
     address: props.vendor.address,
-    join_date: props.vendor.join_date,
+    join_date: normalizeDate(props.vendor.join_date),
     contact_person: props.vendor.contact_person,
     tax_id: props.vendor.tax_id,
     is_active: props.vendor.is_active,
@@ -60,7 +70,7 @@ function editVendor() {
     form.code = props.vendor.code;
     form.name = props.vendor.name;
     form.address = props.vendor.address;
-    form.join_date = props.vendor.join_date;
+    form.join_date = normalizeDate(props.vendor.join_date);
     form.contact_person = props.vendor.contact_person;
     form.tax_id = props.vendor.tax_id;
     form.is_active = props.vendor.is_active;
@@ -68,12 +78,27 @@ function editVendor() {
     isFormModalOpen.value = true;
 }
 
-function submitForm() {
+function executeSubmitForm() {
     form.put(update(props.vendor.id).url, {
         onSuccess: () => {
             isFormModalOpen.value = false;
         },
     });
+}
+
+function submitForm() {
+    saveConfirmation.requestConfirmation(
+        {
+            title: t('common.update'),
+            description: t('vendors.edit_description'),
+            confirmText: t('common.save'),
+            details: [
+                { label: t('vendors.code'), value: form.code || '-' },
+                { label: t('vendors.name'), value: form.name || '-' },
+            ],
+        },
+        executeSubmitForm,
+    );
 }
 
 function formatCurrency(amount: number): string {
@@ -376,5 +401,17 @@ function viewTicket(ticketId: number) {
                 </CardContent>
             </Card>
         </div>
+
+        <ActionConfirmationDialog
+            v-model:open="saveConfirmation.open"
+            :title="saveConfirmation.title"
+            :description="saveConfirmation.description"
+            :confirm-text="saveConfirmation.confirmText"
+            :cancel-text="saveConfirmation.cancelText"
+            :destructive="saveConfirmation.destructive"
+            :details="saveConfirmation.details"
+            @confirm="saveConfirmation.confirm"
+            @cancel="saveConfirmation.cancel"
+        />
     </AppLayout>
 </template>

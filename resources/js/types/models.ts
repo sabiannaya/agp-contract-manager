@@ -46,6 +46,10 @@ export interface Contract {
     cooperation_type: CooperationType;
     term_count: number | null;
     term_percentages: number[] | null;
+    assigned_master_user_id: number | null;
+    payment_total_paid: number;
+    payment_balance: number;
+    payment_last_synced_at: string | null;
     is_active: boolean;
     created_by_user_id: number | null;
     updated_by_user_id: number | null;
@@ -56,6 +60,8 @@ export interface Contract {
     vendor?: Vendor;
     tickets_count?: number;
     tickets?: Ticket[];
+    assigned_master?: import('./auth').User;
+    approvers?: ContractApprover[];
     created_by?: import('./auth').User;
     updated_by?: import('./auth').User;
 }
@@ -68,11 +74,14 @@ export interface ContractForm {
     cooperation_type: CooperationType;
     term_count: number | null;
     term_percentages: number[];
+    assigned_master_user_id: number | null;
     is_active: boolean;
 }
 
 // Ticket types
 export type TicketStatus = 'complete' | 'incomplete';
+
+export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'paid';
 
 export interface Ticket {
     id: number;
@@ -81,6 +90,13 @@ export interface Ticket {
     contract_id: number;
     vendor_id: number;
     status: TicketStatus;
+    amount: number | null;
+    approval_status: ApprovalStatus;
+    submitted_at: string | null;
+    approved_at: string | null;
+    paid_at: string | null;
+    reference_no: string | null;
+    replaces_ticket_id: number | null;
     notes: string | null;
     is_active: boolean;
     created_by_user_id: number | null;
@@ -94,6 +110,9 @@ export interface Ticket {
     documents?: Document[];
     document_count?: number;
     completeness?: string;
+    replaces_ticket?: Ticket;
+    replaced_by_tickets?: Ticket[];
+    approval_steps?: TicketApprovalStep[];
     created_by?: import('./auth').User;
     updated_by?: import('./auth').User;
 }
@@ -102,6 +121,9 @@ export interface TicketForm {
     date: string;
     contract_id: number | null;
     vendor_id: number | null;
+    amount: number | null;
+    reference_no: string;
+    replaces_ticket_id: number | null;
     notes: string;
     is_active: boolean;
 }
@@ -155,6 +177,7 @@ export type PermissionResource =
     | 'vendors'
     | 'contracts'
     | 'tickets'
+    | 'payment_tracker'
     | 'role_groups'
     | 'users';
 
@@ -163,6 +186,7 @@ export const PERMISSION_RESOURCES: PermissionResource[] = [
     'vendors',
     'contracts',
     'tickets',
+    'payment_tracker',
     'role_groups',
     'users',
 ];
@@ -358,5 +382,49 @@ export interface ContractOption {
     number: string;
     vendor_id: number;
     date: string;
+    amount: number;
+    cooperation_type: 'routine' | 'progress';
+    payment_total_paid: number;
+    payment_balance: number;
     vendor?: VendorOption;
+}
+
+// Contract Approver
+export interface ContractApprover {
+    id: number;
+    contract_id: number;
+    user_id: number;
+    sequence_no: number;
+    remarks: string | null;
+    created_at: string;
+    updated_at: string;
+    user?: import('./auth').User;
+}
+
+// Ticket Approval Step
+export type ApprovalStepStatus = 'pending' | 'approved' | 'rejected';
+
+export interface TicketApprovalStep {
+    id: number;
+    ticket_id: number;
+    approver_user_id: number;
+    sequence_no: number;
+    status: ApprovalStepStatus;
+    acted_at: string | null;
+    remarks: string | null;
+    created_at: string;
+    updated_at: string;
+    approver?: import('./auth').User;
+}
+
+// Payment Tracker Filters
+export interface PaymentTrackerFilters {
+    search?: string;
+    approval_status?: ApprovalStatus;
+    contract_id?: number;
+    vendor_id?: number;
+    date_from?: string;
+    date_to?: string;
+    sort?: string;
+    direction?: 'asc' | 'desc';
 }

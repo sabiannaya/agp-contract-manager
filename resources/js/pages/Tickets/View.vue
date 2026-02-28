@@ -12,6 +12,7 @@ import {
 } from 'lucide-vue-next';
 import { reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import DocumentUploadGrid from '@/components/DocumentUploadGrid.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import { useDateFormat } from '@/composables/useDateFormat';
 import { usePermission } from '@/composables/usePermission';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -49,6 +51,7 @@ const props = defineProps<{
 const { t } = useI18n();
 const { formatDateOnly } = useDateFormat();
 const { canUpdate } = usePermission();
+const deleteConfirmation = useActionConfirmation();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     { title: t('nav.view_tickets'), href: view().url },
@@ -164,12 +167,26 @@ function handleDocumentRemove(type: DocumentType) {
 
     const existingDoc = selectedTicket.value.documents?.find((d) => d.type === type);
     if (existingDoc) {
-        router.delete(destroyDocument(existingDoc.id).url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                router.reload({ only: ['tickets'] });
+        deleteConfirmation.requestConfirmation(
+            {
+                title: t('common.confirm_delete'),
+                description: t('documents.delete_confirmation', { name: existingDoc.original_name }),
+                confirmText: t('common.delete'),
+                destructive: true,
+                details: [
+                    { label: 'File', value: existingDoc.original_name },
+                    { label: 'Type', value: t(`documents.${type}`) },
+                ],
             },
-        });
+            () => {
+                router.delete(destroyDocument(existingDoc.id).url, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        router.reload({ only: ['tickets'] });
+                    },
+                });
+            },
+        );
     }
 }
 
@@ -445,5 +462,17 @@ function getDocumentIcon(ticket: Ticket, type: DocumentType): 'exists' | 'missin
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <ActionConfirmationDialog
+            v-model:open="deleteConfirmation.open"
+            :title="deleteConfirmation.title"
+            :description="deleteConfirmation.description"
+            :confirm-text="deleteConfirmation.confirmText"
+            :cancel-text="deleteConfirmation.cancelText"
+            :destructive="deleteConfirmation.destructive"
+            :details="deleteConfirmation.details"
+            @confirm="deleteConfirmation.confirm"
+            @cancel="deleteConfirmation.cancel"
+        />
     </AppLayout>
 </template>

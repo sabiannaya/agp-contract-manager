@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, unknown>">
 import type { HTMLAttributes } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-vue-next';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
@@ -53,7 +54,6 @@ function getCellValue(row: T, key: string): unknown {
 }
 
 // Client-side pagination state
-import { computed, ref, watch } from 'vue';
 const currentPage = ref(1);
 const effectivePageSize = computed(() => props.pageSize ?? 7);
 const useInnerPagination = computed(() => props.innerPagination ?? true);

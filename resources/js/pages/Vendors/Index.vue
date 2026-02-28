@@ -4,6 +4,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { Eye, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
@@ -24,6 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import { usePermission } from '@/composables/usePermission';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { destroy as destroyRoute, index, show, store, update } from '@/routes/vendors';
@@ -37,6 +39,8 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const { canCreate, canUpdate, canDelete } = usePermission();
+const saveConfirmation = useActionConfirmation();
+const deleteConfirmation = useActionConfirmation();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     { title: t('nav.vendors'), href: index().url },
@@ -80,7 +84,6 @@ const columns: DataTableColumn<Vendor>[] = [
 
 // Modal state
 const isFormModalOpen = ref(false);
-const isDeleteModalOpen = ref(false);
 const editingVendor = ref<Vendor | null>(null);
 
 const form = useForm<VendorForm>({
@@ -113,7 +116,7 @@ function openEditModal(vendor: Vendor) {
     form.code = vendor.code;
     form.name = vendor.name;
     form.address = vendor.address;
-    form.join_date = vendor.join_date;
+    form.join_date = normalizeDate(vendor.join_date);
     form.contact_person = vendor.contact_person;
     form.tax_id = vendor.tax_id;
     form.is_active = vendor.is_active;
@@ -121,12 +124,31 @@ function openEditModal(vendor: Vendor) {
     isFormModalOpen.value = true;
 }
 
-function openDeleteModal(vendor: Vendor) {
-    editingVendor.value = vendor;
-    isDeleteModalOpen.value = true;
+function normalizeDate(value: string | null | undefined): string {
+    if (!value) return '';
+    if (value.includes('T')) return value.split('T')[0];
+    if (value.includes(' ')) return value.split(' ')[0];
+    return value;
 }
 
-function submitForm() {
+function openDeleteModal(vendor: Vendor) {
+    editingVendor.value = vendor;
+    deleteConfirmation.requestConfirmation(
+        {
+            title: t('common.confirm_delete'),
+            description: t('vendors.delete_confirmation', { name: vendor.name }),
+            confirmText: t('common.delete'),
+            destructive: true,
+            details: [
+                { label: t('vendors.code'), value: vendor.code },
+                { label: t('vendors.name'), value: vendor.name },
+            ],
+        },
+        confirmDelete,
+    );
+}
+
+function executeSubmitForm() {
     if (editingVendor.value) {
         form.put(update(editingVendor.value.id).url, {
             onSuccess: () => {
@@ -142,12 +164,26 @@ function submitForm() {
     }
 }
 
+function submitForm() {
+    saveConfirmation.requestConfirmation(
+        {
+            title: editingVendor.value ? t('common.update') : t('common.create'),
+            description: editingVendor.value ? t('vendors.edit_description') : t('vendors.create_description'),
+            confirmText: t('common.save'),
+            details: [
+                { label: t('vendors.code'), value: form.code || '-' },
+                { label: t('vendors.name'), value: form.name || '-' },
+            ],
+        },
+        executeSubmitForm,
+    );
+}
+
 function confirmDelete() {
     if (!editingVendor.value) return;
 
     router.delete(destroyRoute(editingVendor.value.id).url, {
         onSuccess: () => {
-            isDeleteModalOpen.value = false;
             editingVendor.value = null;
         },
     });
@@ -325,28 +361,28 @@ function confirmDelete() {
             </DialogContent>
         </Dialog>
 
-        <!-- Delete Confirmation Modal -->
-        <Dialog v-model:open="isDeleteModalOpen">
-            <DialogContent class="sm:max-w-[400px]">
-                <DialogHeader>
-                    <DialogTitle>{{ t('common.confirm_delete') }}</DialogTitle>
-                    <DialogDescription>
-                        {{ t('vendors.delete_confirmation', { name: editingVendor?.name }) }}
-                    </DialogDescription>
-                </DialogHeader>
+        <ActionConfirmationDialog
+            v-model:open="saveConfirmation.open"
+            :title="saveConfirmation.title"
+            :description="saveConfirmation.description"
+            :confirm-text="saveConfirmation.confirmText"
+            :cancel-text="saveConfirmation.cancelText"
+            :destructive="saveConfirmation.destructive"
+            :details="saveConfirmation.details"
+            @confirm="saveConfirmation.confirm"
+            @cancel="saveConfirmation.cancel"
+        />
 
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        @click="isDeleteModalOpen = false"
-                    >
-                        {{ t('common.cancel') }}
-                    </Button>
-                    <Button variant="destructive" @click="confirmDelete">
-                        {{ t('common.delete') }}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <ActionConfirmationDialog
+            v-model:open="deleteConfirmation.open"
+            :title="deleteConfirmation.title"
+            :description="deleteConfirmation.description"
+            :confirm-text="deleteConfirmation.confirmText"
+            :cancel-text="deleteConfirmation.cancelText"
+            :destructive="deleteConfirmation.destructive"
+            :details="deleteConfirmation.details"
+            @confirm="deleteConfirmation.confirm"
+            @cancel="deleteConfirmation.cancel"
+        />
     </AppLayout>
 </template>

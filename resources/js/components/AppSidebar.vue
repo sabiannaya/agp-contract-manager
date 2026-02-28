@@ -15,6 +15,7 @@ import { dashboard } from '@/routes';
 import { index as vendorsIndex } from '@/routes/vendors';
 import { index as contractsIndex } from '@/routes/contracts';
 import { index as ticketsIndex, view as ticketsView } from '@/routes/tickets';
+import { index as paymentTrackerIndex } from '@/routes/payment-tracker';
 import { index as rolesIndex } from '@/routes/roles';
 import { index as usersIndex } from '@/routes/users';
 import { type NavItem } from '@/types';
@@ -32,6 +33,7 @@ import {
     ClipboardCheck,
     Shield,
     Users,
+    Wallet,
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
@@ -71,6 +73,14 @@ const mainNavItems = computed<NavItem[]>(() => {
         });
     }
 
+    if (canRead('payment_tracker')) {
+        items.push({
+            title: t('nav.payment_tracker'),
+            href: paymentTrackerIndex().url,
+            icon: Wallet,
+        });
+    }
+
     if (canRead('role_groups')) {
         items.push({
             title: t('nav.roles'),
@@ -90,18 +100,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     return items;
 });
 
-// const footerNavItems: NavItem[] = [
-//     {
-//         title: 'Github Repo',
-//         href: 'https://github.com/laravel/vue-starter-kit',
-//         icon: Folder,
-//     },
-//     {
-//         title: 'Documentation',
-//         href: 'https://laravel.com/docs/starter-kits#vue',
-//         icon: BookOpen,
-//     },
-// ];
+const footerNavItems: NavItem[] = [];
 </script>
 
 <template>

@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Save } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index, store } from '@/routes/roles';
 import type { BreadcrumbItem } from '@/types';
@@ -26,6 +28,7 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+const saveConfirmation = useActionConfirmation();
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => [
     { title: t('nav.roles'), href: index().url },
@@ -48,12 +51,26 @@ const form = useForm<RoleGroupForm>({
     privileges: initialPrivileges,
 });
 
-function submitForm() {
+function executeSubmitForm() {
     form.post(store().url, {
         onSuccess: () => {
             router.visit(index().url);
         },
     });
+}
+
+function submitForm() {
+    saveConfirmation.requestConfirmation(
+        {
+            title: t('common.create'),
+            description: t('roles.create_description'),
+            confirmText: t('common.save'),
+            details: [
+                { label: t('roles.name'), value: form.name || '-' },
+            ],
+        },
+        executeSubmitForm,
+    );
 }
 
 function toggleAllForPage(pageId: number, value: boolean) {
@@ -300,6 +317,18 @@ function isAllSelected(pageId: number): boolean {
                     </Button>
                 </div>
             </form>
+
+            <ActionConfirmationDialog
+                v-model:open="saveConfirmation.open"
+                :title="saveConfirmation.title"
+                :description="saveConfirmation.description"
+                :confirm-text="saveConfirmation.confirmText"
+                :cancel-text="saveConfirmation.cancelText"
+                :destructive="saveConfirmation.destructive"
+                :details="saveConfirmation.details"
+                @confirm="saveConfirmation.confirm"
+                @cancel="saveConfirmation.cancel"
+            />
         </div>
     </AppLayout>
 </template>
