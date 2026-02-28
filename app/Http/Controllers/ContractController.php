@@ -69,19 +69,12 @@ class ContractController extends Controller
 
         $contracts = $query->paginate(15)->withQueryString();
 
-        // Eligible users for contract master assignment
-        $eligibleMasters = User::eligibleApprovers()
-            ->select('id', 'name', 'email')
-            ->orderBy('name')
-            ->get();
-
         return Inertia::render('Contracts/Index', [
             'contracts' => $contracts,
             'filters' => $request->only([
                 'search', 'vendor_id', 'cooperation_type',
                 'date_from', 'date_to', 'is_active', 'sort', 'direction'
             ]),
-            'eligibleMasters' => $eligibleMasters,
         ]);
     }
 
@@ -108,7 +101,10 @@ class ContractController extends Controller
             $data['term_percentages'] = null;
         }
 
-        Contract::create($data);
+        $contract = Contract::create($data);
+
+        // Auto-seed contract masters as approvers
+        $contract->syncMasterApprovers();
 
         return redirect()
             ->route('contracts.index')
@@ -147,6 +143,8 @@ class ContractController extends Controller
             abort(403, 'You do not have access to this contract.');
         }
 
+        $contract->load(['approvers.user']);
+
         $eligibleMasters = User::eligibleApprovers()
             ->select('id', 'name', 'email')
             ->orderBy('name')
@@ -179,6 +177,9 @@ class ContractController extends Controller
         $amountChanged = (float) $contract->amount !== (float) ($data['amount'] ?? $contract->amount);
 
         $contract->update($data);
+
+        // Re-sync master approvers whenever masters may have changed
+        $contract->syncMasterApprovers();
 
         // Resync payment cache if contract amount changed
         if ($amountChanged) {
@@ -249,9 +250,9 @@ class ContractController extends Controller
         }
 
         $validated = $request->validate([
-            'approvers' => ['required', 'array', 'min:1'],
+            'approvers' => ['present', 'array'],
             'approvers.*.user_id' => ['required', 'integer', 'exists:users,id', 'distinct'],
-            'approvers.*.sequence_no' => ['required', 'integer', 'min:1', 'distinct'],
+            'approvers.*.sequence_no' => ['required', 'integer', 'min:1'],
             'approvers.*.remarks' => ['required', 'string', 'max:1000'],
         ]);
 
@@ -267,15 +268,30 @@ class ContractController extends Controller
                 ->with('error', 'All approvers must have contract update privileges.');
         }
 
-        // Replace all existing approvers
-        $contract->approvers()->delete();
+        // Replace only non-master approvers; masters are managed by the system
+        $contract->approvers()->where('is_master', false)->delete();
+
+        // Determine the next sequence number after existing masters
+        $masterCount = $contract->approvers()->where('is_master', true)->count();
+        $seq = $masterCount + 1;
 
         foreach ($validated['approvers'] as $approverData) {
+            // Skip if this user is already a master approver
+            $isMaster = $contract->approvers()
+                ->where('user_id', $approverData['user_id'])
+                ->where('is_master', true)
+                ->exists();
+
+            if ($isMaster) {
+                continue;
+            }
+
             ContractApprover::create([
                 'contract_id' => $contract->id,
                 'user_id' => $approverData['user_id'],
-                'sequence_no' => $approverData['sequence_no'],
+                'sequence_no' => $seq++,
                 'remarks' => $approverData['remarks'],
+                'is_master' => false,
             ]);
         }
 

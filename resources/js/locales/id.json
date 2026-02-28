@@ -139,9 +139,14 @@
         "total_paid": "Total Dibayar",
         "outstanding_balance": "Sisa Tagihan",
         "contract_master": "Master Kontrak",
+        "approvers_save_separately": "Approver disimpan terpisah di bawah.",
         "creator": "Pembuat",
         "assigned": "Ditugaskan",
-        "approvers": "Penyetuju"
+        "approvers": "Penyetuju",
+        "updated_successfully": "Kontrak berhasil diperbarui",
+        "update_failed": "Gagal memperbarui kontrak",
+        "approvers_updated_successfully": "Penyetuju berhasil diperbarui",
+        "approvers_update_failed": "Gagal memperbarui penyetuju"
     },
     "tickets": {
         "title": "Tiket",
@@ -220,7 +225,17 @@
         "remarks_placeholder": "Catatan opsional...",
         "reference_no": "Nomor Referensi",
         "reference_placeholder": "contoh: nomor referensi transfer atau kuitansi",
-        "replaces": "Menggantikan Tiket"
+        "replaces": "Menggantikan Tiket",
+        "confirm_submit": "Ajukan untuk Persetujuan",
+        "submit_description": "Apakah Anda yakin ingin mengajukan permintaan pembayaran ini untuk persetujuan? Tindakan ini tidak dapat dibatalkan.",
+        "submitted_successfully": "Permintaan pembayaran berhasil diajukan untuk persetujuan",
+        "submit_failed": "Gagal mengajukan permintaan pembayaran untuk persetujuan",
+        "approved_successfully": "Langkah persetujuan berhasil diselesaikan",
+        "approve_failed": "Gagal menyetujui permintaan pembayaran",
+        "rejected_successfully": "Permintaan pembayaran telah ditolak",
+        "reject_failed": "Gagal menolak permintaan pembayaran",
+        "paid_successfully": "Pembayaran berhasil dicatat",
+        "paid_failed": "Gagal mencatat pembayaran"
     },
     "documents": {
         "title": "Dokumen",

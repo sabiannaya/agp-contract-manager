@@ -139,9 +139,14 @@
         "total_paid": "Total Paid",
         "outstanding_balance": "Outstanding Balance",
         "contract_master": "Contract Masters",
+        "approvers_save_separately": "Approvers are saved separately below.",
         "creator": "Creator",
         "assigned": "Assigned",
-        "approvers": "Approvers"
+        "approvers": "Approvers",
+        "updated_successfully": "Contract updated successfully",
+        "update_failed": "Failed to update contract",
+        "approvers_updated_successfully": "Approvers updated successfully",
+        "approvers_update_failed": "Failed to update approvers"
     },
     "tickets": {
         "title": "Tickets",
@@ -225,7 +230,17 @@
         "remarks_placeholder": "Optional remarks...",
         "reference_no": "Reference Number",
         "reference_placeholder": "e.g. transfer reference or receipt number",
-        "replaces": "Replaces Ticket"
+        "replaces": "Replaces Ticket",
+        "confirm_submit": "Submit for Approval",
+        "submit_description": "Are you sure you want to submit this payment request for approval? This action cannot be undone.",
+        "submitted_successfully": "Payment request submitted for approval",
+        "submit_failed": "Failed to submit payment request for approval",
+        "approved_successfully": "Approval step completed successfully",
+        "approve_failed": "Failed to approve payment request",
+        "rejected_successfully": "Payment request has been rejected",
+        "reject_failed": "Failed to reject payment request",
+        "paid_successfully": "Payment recorded successfully",
+        "paid_failed": "Failed to record payment"
     },
     "documents": {
         "title": "Documents",

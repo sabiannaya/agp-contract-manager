@@ -257,6 +257,124 @@ test('contract can be created with assigned master', function () {
     ]);
 });
 
+// ─── Auto-seeded Approvers ─────────────────────────────────────
+test('creating a contract auto-seeds creator as master approver', function () {
+    $vendor = Vendor::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->post(route('contracts.store'), [
+            'number' => 'CTR-AUTO-001',
+            'date' => '2026-01-15',
+            'vendor_id' => $vendor->id,
+            'amount' => 100000000,
+            'cooperation_type' => 'routine',
+            'is_active' => true,
+        ])
+        ->assertRedirect(route('contracts.index'));
+
+    $contract = Contract::where('number', 'CTR-AUTO-001')->first();
+
+    $this->assertDatabaseHas('contract_approvers', [
+        'contract_id' => $contract->id,
+        'user_id' => $this->admin->id,
+        'is_master' => true,
+        'sequence_no' => 1,
+    ]);
+});
+
+test('creating a contract with assigned master seeds both as approvers', function () {
+    $vendor = Vendor::factory()->create();
+    $master = $this->createUserWithPrivileges(['contracts' => ['read', 'update']]);
+
+    $this->actingAs($this->admin)
+        ->post(route('contracts.store'), [
+            'number' => 'CTR-AUTO-002',
+            'date' => '2026-01-15',
+            'vendor_id' => $vendor->id,
+            'amount' => 100000000,
+            'cooperation_type' => 'routine',
+            'is_active' => true,
+            'assigned_master_user_id' => $master->id,
+        ])
+        ->assertRedirect(route('contracts.index'));
+
+    $contract = Contract::where('number', 'CTR-AUTO-002')->first();
+
+    // Creator at seq 1
+    $this->assertDatabaseHas('contract_approvers', [
+        'contract_id' => $contract->id,
+        'user_id' => $this->admin->id,
+        'is_master' => true,
+        'sequence_no' => 1,
+    ]);
+
+    // Assigned master at seq 2
+    $this->assertDatabaseHas('contract_approvers', [
+        'contract_id' => $contract->id,
+        'user_id' => $master->id,
+        'is_master' => true,
+        'sequence_no' => 2,
+    ]);
+});
+
+test('updating contract master re-syncs approvers', function () {
+    $vendor = Vendor::factory()->create();
+    $master1 = $this->createUserWithPrivileges(['contracts' => ['read', 'update']]);
+    $master2 = $this->createUserWithPrivileges(['contracts' => ['read', 'update']]);
+
+    // Create with master1
+    $this->actingAs($this->admin)
+        ->post(route('contracts.store'), [
+            'number' => 'CTR-RESYNC-001',
+            'date' => '2026-01-15',
+            'vendor_id' => $vendor->id,
+            'amount' => 100000000,
+            'cooperation_type' => 'routine',
+            'is_active' => true,
+            'assigned_master_user_id' => $master1->id,
+        ]);
+
+    $contract = Contract::where('number', 'CTR-RESYNC-001')->first();
+    expect($contract->approvers()->where('user_id', $master1->id)->where('is_master', true)->exists())->toBeTrue();
+
+    // Update to master2
+    $this->actingAs($this->admin)
+        ->put(route('contracts.update', $contract), [
+            'number' => $contract->number,
+            'date' => $contract->date->format('Y-m-d'),
+            'vendor_id' => $contract->vendor_id,
+            'amount' => $contract->amount,
+            'cooperation_type' => 'routine',
+            'is_active' => true,
+            'assigned_master_user_id' => $master2->id,
+        ]);
+
+    $contract->refresh();
+
+    // master1 should no longer be a master approver
+    expect($contract->approvers()->where('user_id', $master1->id)->where('is_master', true)->exists())->toBeFalse();
+    // master2 should now be a master approver
+    expect($contract->approvers()->where('user_id', $master2->id)->where('is_master', true)->exists())->toBeTrue();
+});
+
+test('sync approvers cannot remove master approvers', function () {
+    $vendor = Vendor::factory()->create();
+    $contract = Contract::factory()->create([
+        'created_by_user_id' => $this->admin->id,
+    ]);
+    $contract->syncMasterApprovers();
+
+    // Try syncing with empty approvers (only masters remain)
+    $this->actingAs($this->admin)
+        ->post(route('contracts.sync-approvers', $contract), [
+            'approvers' => [],
+        ]);
+
+    // Master approver should still exist
+    expect($contract->approvers()->where('is_master', true)->count())->toBe(1);
+    expect($contract->approvers()->where('user_id', $this->admin->id)->exists())->toBeTrue();
+});
+
 // ─── Payment cache sync ────────────────────────────────────────
 test('updating contract amount syncs payment cache', function () {
     $contract = Contract::factory()->create(['amount' => 100000000]);

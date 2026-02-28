@@ -396,6 +396,7 @@ export interface ContractApprover {
     user_id: number;
     sequence_no: number;
     remarks: string | null;
+    is_master: boolean;
     created_at: string;
     updated_at: string;
     user?: import('./auth').User;

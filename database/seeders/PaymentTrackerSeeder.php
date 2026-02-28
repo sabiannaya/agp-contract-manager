@@ -118,9 +118,22 @@ class PaymentTrackerSeeder extends Seeder
             $contract = $contracts[$contractNumber] ?? null;
             if (!$contract) continue;
 
-            foreach ($approvers as $seq => $config) {
+            // Masters are already seeded by ContractSeeder; find next sequence
+            $nextSeq = $contract->approvers()->where('is_master', true)->count() + 1;
+
+            foreach ($approvers as $config) {
                 $user = $config['user'] ?? null;
                 if (!$user) {
+                    continue;
+                }
+
+                // Skip if this user is already a master approver
+                $existingMaster = $contract->approvers()
+                    ->where('user_id', $user->id)
+                    ->where('is_master', true)
+                    ->exists();
+
+                if ($existingMaster) {
                     continue;
                 }
 
@@ -130,8 +143,9 @@ class PaymentTrackerSeeder extends Seeder
                         'user_id' => $user->id,
                     ],
                     [
-                        'sequence_no' => $seq + 1,
+                        'sequence_no' => $nextSeq++,
                         'remarks' => $config['remarks'] ?? null,
+                        'is_master' => false,
                     ]
                 );
             }

@@ -106,6 +106,64 @@ class Contract extends Model
     }
 
     /**
+     * Ensure the contract masters (creator + assigned master) exist as approvers.
+     *
+     * Masters are inserted at the front of the sequence and flagged as
+     * is_master so they cannot be accidentally removed via the UI.
+     * Existing non-master approvers keep their relative order.
+     */
+    public function syncMasterApprovers(): void
+    {
+        $masterIds = collect([
+            $this->created_by_user_id,
+            $this->assigned_master_user_id,
+        ])->filter()->unique()->values();
+
+        if ($masterIds->isEmpty()) {
+            return;
+        }
+
+        // Remove any old master-flagged rows that are no longer masters
+        $this->approvers()
+            ->where('is_master', true)
+            ->whereNotIn('user_id', $masterIds)
+            ->delete();
+
+        // Temporarily shift all existing sequence numbers to high values
+        // to avoid unique constraint violations during re-sequencing
+        $existing = $this->approvers()->orderBy('sequence_no')->get();
+        foreach ($existing as $i => $approver) {
+            $approver->updateQuietly(['sequence_no' => 200 + $i]);
+        }
+
+        // Upsert current masters at the front
+        $seq = 1;
+        foreach ($masterIds as $userId) {
+            ContractApprover::updateOrCreate(
+                [
+                    'contract_id' => $this->id,
+                    'user_id' => $userId,
+                ],
+                [
+                    'sequence_no' => $seq,
+                    'remarks' => $seq === 1 ? 'Contract master' : 'Assistant contract master',
+                    'is_master' => true,
+                ]
+            );
+            $seq++;
+        }
+
+        // Re-sequence non-master approvers after the masters
+        $this->approvers()
+            ->where('is_master', false)
+            ->orderBy('sequence_no')
+            ->get()
+            ->each(function (ContractApprover $approver) use (&$seq) {
+                $approver->update(['sequence_no' => $seq++]);
+            });
+    }
+
+    /**
      * Get paid tickets for this contract.
      */
     public function paidTickets(): HasMany

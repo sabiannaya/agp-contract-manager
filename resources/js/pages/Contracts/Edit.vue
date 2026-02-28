@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { Plus, ShieldCheck, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { useActionConfirmation } from '@/composables/useActionConfirmation';
+import { useToast } from '@/composables/useToast';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index, show, update } from '@/routes/contracts';
 import { list as vendorList } from '@/routes/vendors';
@@ -28,7 +31,9 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+const toast = useToast();
 const saveConfirmation = useActionConfirmation();
+const approverConfirmation = useActionConfirmation();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     { title: t('nav.contracts'), href: index().url },
@@ -107,7 +112,16 @@ function formatCurrency(amount: number | undefined | null): string {
 }
 
 function executeSubmit() {
-    form.put(update(props.contract.id).url);
+    form.put(update(props.contract.id).url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success(t('contracts.updated_successfully'));
+            router.visit(show(props.contract.id).url);
+        },
+        onError: () => {
+            toast.error(t('contracts.update_failed'));
+        },
+    });
 }
 
 function submitForm() {
@@ -129,6 +143,104 @@ function submitForm() {
 function cancel() {
     router.get(show(props.contract.id).url);
 }
+
+// ====== Approvers management ======
+const approverOptions = computed(() => masterOptions.value);
+
+type ApproverRow = {
+    user_id: number | null;
+    sequence_no: number;
+    remarks: string;
+    is_master: boolean;
+};
+
+const approverForm = useForm<{ approvers: ApproverRow[] }>({
+    approvers: [],
+});
+
+function hydrateApproverForm() {
+    const existing = ((props.contract as any).approvers ?? []).map((approver: any, index: number) => ({
+        user_id: approver.user_id ?? null,
+        sequence_no: approver.sequence_no ?? index + 1,
+        remarks: approver.remarks ?? '',
+        is_master: approver.is_master ?? false,
+    }));
+
+    approverForm.approvers = existing.length > 0
+        ? existing
+        : [{ user_id: null, sequence_no: 1, remarks: '', is_master: false }];
+}
+
+function normalizeSequenceNumbers() {
+    approverForm.approvers = approverForm.approvers.map((row, index) => ({
+        ...row,
+        sequence_no: index + 1,
+    }));
+}
+
+function addApproverRow() {
+    approverForm.approvers.push({
+        user_id: null,
+        sequence_no: approverForm.approvers.length + 1,
+        remarks: '',
+        is_master: false,
+    });
+}
+
+function removeApproverRow(index: number) {
+    if (approverForm.approvers[index]?.is_master) return;
+    approverForm.approvers.splice(index, 1);
+    normalizeSequenceNumbers();
+}
+
+function executeSaveApprovers() {
+    normalizeSequenceNumbers();
+
+    // Only send non-master approvers; masters are managed by the backend
+    const nonMasterApprovers = approverForm.approvers
+        .filter((row) => !row.is_master)
+        .map((row, index) => ({
+            user_id: row.user_id,
+            sequence_no: index + 1,
+            remarks: row.remarks,
+        }));
+
+    router.post(`/contracts/${props.contract.id}/approvers`, {
+        approvers: nonMasterApprovers,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success(t('contracts.approvers_updated_successfully'));
+            router.visit(show(props.contract.id).url);
+        },
+        onError: () => {
+            toast.error(t('contracts.approvers_update_failed'));
+        },
+    });
+}
+
+function submitApprovers() {
+    approverConfirmation.requestConfirmation(
+        {
+            title: t('contracts.approvers'),
+            description: 'Update contract approvers and why they are required in the workflow.',
+            confirmText: t('common.save'),
+            details: [
+                { label: t('contracts.contract_number'), value: props.contract.number },
+                { label: t('contracts.approvers'), value: String(approverForm.approvers.length) },
+            ],
+        },
+        executeSaveApprovers,
+    );
+}
+
+watch(
+    () => (props.contract as any).approvers,
+    () => {
+        hydrateApproverForm();
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
@@ -181,7 +293,7 @@ function cancel() {
                         </div>
 
                         <div class="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-                            {{ t('contracts.approvers') }}: manage from contract detail page.
+                            {{ t('contracts.approvers') }}: {{ t('contracts.approvers_save_separately') ?? 'Approvers are saved separately below.' }}
                         </div>
 
                         <div v-if="form.cooperation_type === 'progress'" class="space-y-4 rounded-lg border p-4">
@@ -217,6 +329,76 @@ function cancel() {
                     </div>
                 </form>
             </div>
+
+            <!-- Approvers Management -->
+            <Card>
+                <CardHeader>
+                    <CardTitle class="flex items-center justify-between gap-2">
+                        <span>{{ t('contracts.approvers') }}</span>
+                        <Button type="button" variant="outline" size="sm" @click="addApproverRow" :disabled="approverForm.processing">
+                            <Plus class="mr-1 size-4" />
+                            {{ t('common.create') }}
+                        </Button>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <form class="space-y-3" @submit.prevent="submitApprovers">
+                        <div
+                            v-for="(row, index) in approverForm.approvers"
+                            :key="`approver-row-${index}`"
+                            :class="['grid gap-3 rounded-md border p-3 lg:grid-cols-12', row.is_master ? 'bg-muted/40' : '']"
+                        >
+                            <div class="lg:col-span-1">
+                                <Label>Seq</Label>
+                                <Input :model-value="row.sequence_no" disabled />
+                            </div>
+                            <div class="lg:col-span-4">
+                                <Label>{{ t('nav.users') }}</Label>
+                                <Select
+                                    v-model="row.user_id"
+                                    :options="approverOptions"
+                                    :placeholder="t('common.select')"
+                                    :disabled="approverForm.processing || row.is_master"
+                                    :clearable="!row.is_master"
+                                />
+                            </div>
+                            <div class="lg:col-span-6">
+                                <Label>Remarks</Label>
+                                <Input
+                                    v-model="row.remarks"
+                                    :placeholder="'Why this approver is required'"
+                                    :disabled="approverForm.processing || row.is_master"
+                                />
+                                <p v-if="row.is_master" class="text-xs text-muted-foreground mt-1">
+                                    <ShieldCheck class="inline size-3 mr-0.5" /> {{ t('contracts.contract_master') }}
+                                </p>
+                            </div>
+                            <div class="flex items-end lg:col-span-1">
+                                <Button
+                                    v-if="!row.is_master"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    :disabled="approverForm.processing"
+                                    @click="removeApproverRow(index)"
+                                >
+                                    <Trash2 class="size-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <p v-if="approverForm.errors.approvers" class="text-sm text-destructive">
+                            {{ approverForm.errors.approvers }}
+                        </p>
+
+                        <div class="flex justify-end">
+                            <Button type="submit" :disabled="approverForm.processing">
+                                {{ approverForm.processing ? t('common.saving') : t('common.save') }}
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
 
         <ActionConfirmationDialog
@@ -229,6 +411,18 @@ function cancel() {
             :details="saveConfirmation.details.value"
             @confirm="saveConfirmation.confirm"
             @cancel="saveConfirmation.cancel"
+        />
+
+        <ActionConfirmationDialog
+            v-model:open="approverConfirmation.open.value"
+            :title="approverConfirmation.title.value"
+            :description="approverConfirmation.description.value"
+            :confirm-text="approverConfirmation.confirmText.value"
+            :cancel-text="approverConfirmation.cancelText.value"
+            :destructive="approverConfirmation.destructive.value"
+            :details="approverConfirmation.details.value"
+            @confirm="approverConfirmation.confirm"
+            @cancel="approverConfirmation.cancel"
         />
     </AppLayout>
 </template>

@@ -15,12 +15,14 @@ class ContractApprover extends Model
         'user_id',
         'sequence_no',
         'remarks',
+        'is_master',
     ];
 
     protected function casts(): array
     {
         return [
             'sequence_no' => 'integer',
+            'is_master' => 'boolean',
         ];
     }
 

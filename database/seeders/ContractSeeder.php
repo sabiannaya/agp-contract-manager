@@ -217,7 +217,8 @@ class ContractSeeder extends Seeder
         ];
 
         foreach ($contracts as $contract) {
-            Contract::create($contract);
+            $created = Contract::create($contract);
+            $created->syncMasterApprovers();
         }
     }
 }

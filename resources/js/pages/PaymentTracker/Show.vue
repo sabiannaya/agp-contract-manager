@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Calendar, CheckCircle2, XCircle, Clock, DollarSign, FileText, User } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ActionConfirmationDialog from '@/components/ActionConfirmationDialog.vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,9 +19,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { useActionConfirmation } from '@/composables/useActionConfirmation';
 import { useDateFormat } from '@/composables/useDateFormat';
+import { useToast } from '@/composables/useToast';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem } from '@/types';
+import type { AppPageProps, BreadcrumbItem } from '@/types';
 import type { Ticket } from '@/types/models';
 
 const props = defineProps<{
@@ -29,6 +32,20 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const { formatDateOnly, formatDateTime } = useDateFormat();
+const toast = useToast();
+const submitConfirmation = useActionConfirmation();
+
+const page = usePage<AppPageProps>();
+const currentUserId = computed(() => page.props.auth.user.id);
+
+// Determine the next pending approval step (lowest sequence_no with status 'pending')
+const nextPendingStepId = computed(() => {
+    const steps = (props.ticket as any).approval_steps ?? [];
+    const pendingSteps = steps.filter((s: any) => s.status === 'pending');
+    if (pendingSteps.length === 0) return null;
+    pendingSteps.sort((a: any, b: any) => a.sequence_no - b.sequence_no);
+    return pendingSteps[0].id;
+});
 
 const breadcrumbItems: BreadcrumbItem[] = [
     { title: t('nav.payment_tracker'), href: '/payment-tracker' },
@@ -95,24 +112,69 @@ const paidForm = useForm({ reference_no: '' });
 
 function submitApproval() {
     approveForm.post(`/payment-tracker/${props.ticket.id}/approve`, {
-        onSuccess: () => { isApproveModalOpen.value = false; },
+        onSuccess: () => {
+            isApproveModalOpen.value = false;
+            toast.success(t('payment_tracker.approved_successfully'));
+            router.reload();
+        },
+        onError: () => {
+            isApproveModalOpen.value = false;
+            toast.error(t('payment_tracker.approve_failed'));
+        },
     });
 }
 
 function submitRejection() {
     rejectForm.post(`/payment-tracker/${props.ticket.id}/reject`, {
-        onSuccess: () => { isRejectModalOpen.value = false; },
+        onSuccess: () => {
+            isRejectModalOpen.value = false;
+            toast.success(t('payment_tracker.rejected_successfully'));
+            router.reload();
+        },
+        onError: () => {
+            isRejectModalOpen.value = false;
+            toast.error(t('payment_tracker.reject_failed'));
+        },
     });
 }
 
 function submitMarkPaid() {
     paidForm.post(`/payment-tracker/${props.ticket.id}/mark-paid`, {
-        onSuccess: () => { isPaidModalOpen.value = false; },
+        onSuccess: () => {
+            isPaidModalOpen.value = false;
+            toast.success(t('payment_tracker.paid_successfully'));
+            router.reload();
+        },
+        onError: () => {
+            isPaidModalOpen.value = false;
+            toast.error(t('payment_tracker.paid_failed'));
+        },
     });
 }
 
 function submitForApproval() {
-    router.post(`/payment-tracker/${props.ticket.id}/submit`);
+    submitConfirmation.requestConfirmation(
+        {
+            title: t('payment_tracker.confirm_submit'),
+            description: t('payment_tracker.submit_description'),
+            confirmText: t('payment_tracker.submit_for_approval'),
+            cancelText: t('common.cancel'),
+        },
+        () => executeSubmitForApproval(),
+    );
+}
+
+function executeSubmitForApproval() {
+    router.post(`/payment-tracker/${props.ticket.id}/submit`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success(t('payment_tracker.submitted_successfully'));
+            router.reload();
+        },
+        onError: () => {
+            toast.error(t('payment_tracker.submit_failed'));
+        },
+    });
 }
 
 const ticket = props.ticket as any;
@@ -257,8 +319,8 @@ const ticket = props.ticket as any;
                                 </p>
                                 <p v-if="step.remarks" class="mt-1 text-sm">{{ step.remarks }}</p>
 
-                                <!-- Action buttons for current approver -->
-                                <div v-if="step.status === 'pending' && ticket.approval_status === 'pending'" class="mt-3 flex gap-2">
+                                <!-- Action buttons — only for the designated approver whose turn it is -->
+                                <div v-if="step.status === 'pending' && ticket.approval_status === 'pending' && step.approver_user_id === currentUserId && step.id === nextPendingStepId" class="mt-3 flex gap-2">
                                     <Button size="sm" @click="isApproveModalOpen = true">
                                         <CheckCircle2 class="mr-1 size-4" />
                                         {{ t('payment_tracker.approve') }}
@@ -319,6 +381,19 @@ const ticket = props.ticket as any;
                 </form>
             </DialogContent>
         </Dialog>
+
+        <!-- Submit Confirmation Dialog -->
+        <ActionConfirmationDialog
+            v-model:open="submitConfirmation.open.value"
+            :title="submitConfirmation.title.value"
+            :description="submitConfirmation.description.value"
+            :confirm-text="submitConfirmation.confirmText.value"
+            :cancel-text="submitConfirmation.cancelText.value"
+            :destructive="submitConfirmation.destructive.value"
+            :details="submitConfirmation.details.value"
+            @confirm="submitConfirmation.confirm"
+            @cancel="submitConfirmation.cancel"
+        />
 
         <!-- Mark Paid Modal -->
         <Dialog v-model:open="isPaidModalOpen">
